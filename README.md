@@ -35,7 +35,7 @@ Commands available in `atom-text-editor:not([mini])`:
 
 - **[symbol.provider](docs/symbol.provider.md)** (`^1.0.0`): consumed to allow external sources to suggest symbols for a given file or project.
 - **[symbol.registry](docs/symbol.registry.md)** (`1.0.0`): provided to serve aggregated, cached symbols to other packages.
-- **[hyperclick.provider](docs/hyperclick.provider.md)** (`1.0.0`): provided to let you follow a symbol to its declaration with a click.
+- **hyperclick.provider** (`1.0.0`): provided to let you follow a symbol to its declaration with a click.
 
 ## Customization
 

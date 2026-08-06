@@ -84,7 +84,8 @@ describe("symbol package assets", () => {
   it("ships a contract document for every owned service", () => {
     expect(exists("docs/symbol.provider.md")).toBe(true);
     expect(exists("docs/symbol.registry.md")).toBe(true);
-    expect(exists("docs/hyperclick.provider.md")).toBe(true);
+    // `hyperclick.provider` is owned by its consumer, the hyperclick package.
+    expect(exists("docs/hyperclick.provider.md")).toBe(false);
   });
 
   it("has no leftover symbols-view references in lib", () => {
