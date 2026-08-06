@@ -7,7 +7,7 @@ A source of symbols — classes, functions, definitions — for one file, for th
 | Version     | `1.0.0`                                                       |
 | Provided by | `provideSymbol()` returning one provider, or an array of them |
 | Consumed by | `consumeSymbol(provider)` returning a `Disposable`            |
-| Owner       | `symbols-view` (bundled)                                      |
+| Owner       | `symbol` (bundled)                                            |
 
 The full contract, with prose on every field, is `lib/main.d.ts` in this package. It is the authoritative version; this page is the summary plus the parts that only show up at runtime.
 
@@ -40,11 +40,11 @@ Four members are required. A provider missing any of them is rejected with an `I
 
 Optional:
 
-| Member                         | Description                                                                                                                                                                              |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `isExclusive`                  | `true` marks you as a workhorse provider competing with ctags and Tree-sitter. At most one exclusive provider is chosen per task; supplemental providers all contribute alongside it.    |
-| `onShouldClearCache(callback)` | Invoke the callback when your symbols go stale for a reason `symbols-view` cannot see. It already clears on config change, provider activation, grammar change, save, and buffer change. |
-| `destroy()`                    | Called on window teardown, or when either package is disabled.                                                                                                                           |
+| Member                         | Description                                                                                                                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `isExclusive`                  | `true` marks you as a workhorse provider competing with ctags and Tree-sitter. At most one exclusive provider is chosen per task; supplemental providers all contribute alongside it. |
+| `onShouldClearCache(callback)` | Invoke the callback when your symbols go stale for a reason `symbol` cannot see. It already clears on config change, provider activation, grammar change, save, and buffer change.    |
+| `destroy()`                    | Called on window teardown, or when either package is disabled.                                                                                                                        |
 
 The `meta` bundle carries `type` (`"file"`, `"project"`, or `"project-find"`), the `editor`, an optional `query`, an optional `range`, an `AbortSignal` as `signal`, and sometimes `timeoutMs`.
 
@@ -83,11 +83,11 @@ module.exports = {
 
 `canProvideSymbols` returns a score, not just a yes. `true` means `1`, `false` means `0`, and **anything above `1` is clamped to `1`** — there is no winning a number war, and the user breaks ties in the settings. Return a lower score when you are a workable fallback rather than the right answer: a provider that reads from disk should score lower for a modified buffer, and one that cannot do go-to-definition should still score low rather than zero for `project-find`.
 
-The three request types want different things. `file` wants every symbol in the buffer. `project` wants an appropriate slice, filtered by `query` or not — `symbols-view` will filter again on the frontend either way, and `getSymbols` is called again on each keystroke. `project-find` is a go-to-definition: return the single answer if you know it.
+The three request types want different things. `file` wants every symbol in the buffer. `project` wants an appropriate slice, filtered by `query` or not — `symbol` will filter again on the frontend either way, and `getSymbols` is called again on each keystroke. `project-find` is a go-to-definition: return the single answer if you know it.
 
-`meta.signal` aborts when the user closes the UI, types another character, or when you exceed `timeoutMs`. **Check it after every await** and return `null` rather than continuing. An aborted signal is `symbols-view` withdrawing the question, so coming back empty is never reported as a provider failure — and there is nothing to gain by pressing on, since symbols that arrive after the budget is spent are discarded.
+`meta.signal` aborts when the user closes the UI, types another character, or when you exceed `timeoutMs`. **Check it after every await** and return `null` rather than continuing. An aborted signal is `symbol` withdrawing the question, so coming back empty is never reported as a provider failure — and there is nothing to gain by pressing on, since symbols that arrive after the budget is spent are discarded.
 
-`timeoutMs` is enforced by `symbols-view`, not by you — it is passed so you can choose between searching further and returning what you have. It is present only when the symbol list is not on screen yet; once it is, you may take as long as you like.
+`timeoutMs` is enforced by `symbol`, not by you — it is passed so you can choose between searching further and returning what you have. It is present only when the symbol list is not on screen yet; once it is, you may take as long as you like.
 
 `listController` is passed **only to the exclusive provider**, and lets it set `errorMessage`, `emptyMessage`, `loadingMessage`, or `loadingBadge` on the list. Use it to explain an empty result — "query must be at least 3 characters" — rather than leaving the user with a blank panel.
 

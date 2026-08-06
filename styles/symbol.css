@@ -9,56 +9,56 @@
  * (Expanded from the Less `.badge-variant(@char, @num)` mixin loop, where
  * each variant was `spin(@background-color-info, (360 / 16) * @num)`.)
  */
-.symbols-view-badge-variant-0 {
+.symbol-badge-variant-0 {
   background-color: hsl(from var(--background-color-info) h s l) !important;
 }
-.symbols-view-badge-variant-1 {
+.symbol-badge-variant-1 {
   background-color: hsl(from var(--background-color-info) calc(h + 22.5) s l) !important;
 }
-.symbols-view-badge-variant-2 {
+.symbol-badge-variant-2 {
   background-color: hsl(from var(--background-color-info) calc(h + 45) s l) !important;
 }
-.symbols-view-badge-variant-3 {
+.symbol-badge-variant-3 {
   background-color: hsl(from var(--background-color-info) calc(h + 67.5) s l) !important;
 }
-.symbols-view-badge-variant-4 {
+.symbol-badge-variant-4 {
   background-color: hsl(from var(--background-color-info) calc(h + 90) s l) !important;
 }
-.symbols-view-badge-variant-5 {
+.symbol-badge-variant-5 {
   background-color: hsl(from var(--background-color-info) calc(h + 112.5) s l) !important;
 }
-.symbols-view-badge-variant-6 {
+.symbol-badge-variant-6 {
   background-color: hsl(from var(--background-color-info) calc(h + 135) s l) !important;
 }
-.symbols-view-badge-variant-7 {
+.symbol-badge-variant-7 {
   background-color: hsl(from var(--background-color-info) calc(h + 157.5) s l) !important;
 }
-.symbols-view-badge-variant-8 {
+.symbol-badge-variant-8 {
   background-color: hsl(from var(--background-color-info) calc(h + 180) s l) !important;
 }
-.symbols-view-badge-variant-9 {
+.symbol-badge-variant-9 {
   background-color: hsl(from var(--background-color-info) calc(h + 202.5) s l) !important;
 }
-.symbols-view-badge-variant-a {
+.symbol-badge-variant-a {
   background-color: hsl(from var(--background-color-info) calc(h + 225) s l) !important;
 }
-.symbols-view-badge-variant-b {
+.symbol-badge-variant-b {
   background-color: hsl(from var(--background-color-info) calc(h + 247.5) s l) !important;
 }
-.symbols-view-badge-variant-c {
+.symbol-badge-variant-c {
   background-color: hsl(from var(--background-color-info) calc(h + 270) s l) !important;
 }
-.symbols-view-badge-variant-d {
+.symbol-badge-variant-d {
   background-color: hsl(from var(--background-color-info) calc(h + 292.5) s l) !important;
 }
-.symbols-view-badge-variant-e {
+.symbol-badge-variant-e {
   background-color: hsl(from var(--background-color-info) calc(h + 315) s l) !important;
 }
-.symbols-view-badge-variant-f {
+.symbol-badge-variant-f {
   background-color: hsl(from var(--background-color-info) calc(h + 337.5) s l) !important;
 }
 
-atom-panel.modal .symbols-view {
+atom-panel.modal .symbol {
   .primary-line {
     display: flex !important;
     flex-direction: row;

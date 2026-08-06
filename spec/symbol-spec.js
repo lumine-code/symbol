@@ -2,9 +2,7 @@ const path = require("path");
 const etch = require("@lumine-code/etch");
 const fs = require("@lumine-code/fs-plus");
 const temp = require("@lumine-code/temp");
-const SymbolsView = require("../lib/symbols-view");
-
-const { migrateOldConfigIfNeeded } = require("../lib/util");
+const SymbolListView = require("../lib/symbol-list-view");
 
 const DummyProvider = require("./fixtures/providers/dummy-provider");
 const SecondDummyProvider = require("./fixtures/providers/second-dummy-provider");
@@ -61,11 +59,11 @@ async function dispatchAndWaitForChoices(commandName) {
 }
 
 function registerProvider(...args) {
-  let pkg = atom.packages.getActivePackage("symbols-view");
+  let pkg = atom.packages.getActivePackage("symbol");
   let main = pkg?.mainModule;
   if (!main) {
     let disposable = atom.packages.onDidActivatePackage((pack) => {
-      if (pack.name !== "symbols-view") return;
+      if (pack.name !== "symbol") return;
       for (let provider of args) {
         pack.mainModule.consumeSymbol(provider);
       }
@@ -74,7 +72,7 @@ function registerProvider(...args) {
     // If we let the package lazy-activate the first time a command is invoked,
     // we lose an opportunity to add mock providers. So we should activate it
     // manually.
-    atom.packages.getLoadedPackage("symbols-view").activateNow();
+    atom.packages.getLoadedPackage("symbol").activateNow();
   } else {
     for (let provider of args) {
       main.consumeSymbol(provider);
@@ -82,37 +80,37 @@ function registerProvider(...args) {
   }
 }
 
-describe("SymbolsView", () => {
+describe("symbol", () => {
   let symbolsView, activationPromise, editor, directory, mainModule, languageMode;
 
   beforeEach(async () => {
     jasmine.unspy(Date, "now");
     jasmine.unspy(global, "setTimeout");
 
-    atom.project.setPaths([temp.mkdirSync("other-dir-"), temp.mkdirSync("atom-symbols-view-")]);
+    atom.project.setPaths([temp.mkdirSync("other-dir-"), temp.mkdirSync("symbol-spec-")]);
 
     directory = atom.project.getDirectories()[1];
 
     fs.copySync(path.join(__dirname, "fixtures", "js"), atom.project.getPaths()[1]);
 
-    atom.config.set("symbols-view.showProviderNamesInSymbolsView", false);
-    atom.config.set("symbols-view.showIconsInSymbolsView", false);
+    atom.config.set("symbol.showProviderNames", false);
+    atom.config.set("symbol.showIcons", false);
 
-    activationPromise = atom.packages.activatePackage("symbols-view");
+    activationPromise = atom.packages.activatePackage("symbol");
     await activationPromise.then(() => {
-      mainModule = atom.packages.getActivePackage("symbols-view").mainModule;
+      mainModule = atom.packages.getActivePackage("symbol").mainModule;
     });
     await atom.packages.activatePackage("language-javascript");
     jasmine.attachToDOM(getWorkspaceView());
   });
 
   afterEach(async () => {
-    await atom.packages.deactivatePackage("symbols-view");
+    await atom.packages.deactivatePackage("symbol");
   });
 
   describe("when toggling file symbols", () => {
     beforeEach(async () => {
-      atom.config.set("symbols-view.providerTimeout", 500);
+      atom.config.set("symbol.providerTimeout", 500);
       await atom.workspace.open(directory.resolve("sample.js"));
       editor = atom.workspace.getActiveTextEditor();
       languageMode = editor.getBuffer().getLanguageMode();
@@ -122,7 +120,7 @@ describe("SymbolsView", () => {
     it("displays all symbols with line numbers", async () => {
       registerProvider(DummyProvider);
       await activationPromise;
-      await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
 
       expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
@@ -157,11 +155,11 @@ describe("SymbolsView", () => {
     });
 
     it("prefills the query field if `prefillSelectedText` is `true`", async () => {
-      atom.config.set("symbols-view.prefillSelectedText", true);
+      atom.config.set("symbol.prefillSelectedText", true);
       registerProvider(DummyProvider);
       await activationPromise;
       spyOn(editor, "getSelectedText").andReturn("Symbol on Row 13");
-      await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
 
       expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
@@ -185,11 +183,11 @@ describe("SymbolsView", () => {
     });
 
     it("does not prefill the query field if `prefillSelectedText` is `false`", async () => {
-      atom.config.set("symbols-view.prefillSelectedText", false);
+      atom.config.set("symbol.prefillSelectedText", false);
       registerProvider(DummyProvider);
       await activationPromise;
       spyOn(editor, "getSelectedText").andReturn("Symbol on Row 13");
-      await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
 
       expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
@@ -213,8 +211,8 @@ describe("SymbolsView", () => {
     it("does not wait for providers that take too long", async () => {
       registerProvider(DummyProvider, VerySlowProvider);
       await activationPromise;
-      expect(mainModule.broker.providers.length).toBe(2);
-      atom.commands.dispatch(getEditorView(), "symbols-view:toggle-file-symbols");
+      expect(mainModule.registry.broker.providers.length).toBe(2);
+      atom.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
 
       symbolsView = atom.workspace.getModalPanels()[0].item;
       await conditionPromise(async () => {
@@ -250,7 +248,7 @@ describe("SymbolsView", () => {
       await activationPromise;
       spyOn(console, "error").andCallThrough();
 
-      await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
       expect(choiceCount(symbolsView)).toBe(5);
 
@@ -269,7 +267,7 @@ describe("SymbolsView", () => {
       registerProvider(DummyProvider, LateProvider);
       await activationPromise;
 
-      await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
       expect(choiceCount(symbolsView)).toBe(5);
 
@@ -277,7 +275,7 @@ describe("SymbolsView", () => {
       await getOrScheduleUpdatePromise();
 
       expect(choiceCount(symbolsView)).toBe(5);
-      expect(symbolsView.cachedResults.get(editor).length).toBe(5);
+      expect(mainModule.registry.cache.get(editor).length).toBe(5);
     });
 
     it("skips providers that hang while answering canProvideSymbols", async () => {
@@ -287,10 +285,10 @@ describe("SymbolsView", () => {
       // responsive provider rather than waiting forever.
       registerProvider(VerySlowProvider, HangingProvider);
       await activationPromise;
-      expect(mainModule.broker.providers.length).toBe(2);
+      expect(mainModule.registry.broker.providers.length).toBe(2);
 
       let meta = { type: "file", editor, paths: atom.project.getPaths() };
-      let selected = await mainModule.broker.select(meta);
+      let selected = await mainModule.registry.broker.select(meta);
       let names = selected.map((provider) => provider.name);
 
       expect(names).toContain("Very Slow");
@@ -307,11 +305,11 @@ describe("SymbolsView", () => {
       // `ListController` privilege, not about the budget, so give the provider
       // one its own delays cannot exhaust. A provider that truly hangs still
       // fails the spec at jasmine's own five-second cap.
-      atom.config.set("symbols-view.providerTimeout", 30000);
+      atom.config.set("symbol.providerTimeout", 30000);
       registerProvider(AsyncDummyProvider);
       await activationPromise;
-      expect(mainModule.broker.providers.length).toBe(1);
-      atom.commands.dispatch(getEditorView(), "symbols-view:toggle-file-symbols");
+      expect(mainModule.registry.broker.providers.length).toBe(1);
+      atom.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
       spyOn(symbolsView.selectListView, "update").andCallThrough();
       await conditionPromise(async () => {
@@ -329,32 +327,32 @@ describe("SymbolsView", () => {
       registerProvider(DummyProvider);
       await activationPromise;
       editor = atom.workspace.getActiveTextEditor();
-      await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = atom.workspace.getModalPanels()[0].item;
       await symbolsView.cancel();
 
       spyOn(DummyProvider, "getSymbols").andCallThrough();
 
-      await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       expect(choiceCount(symbolsView)).toBe(5);
       expect(DummyProvider.getSymbols).not.toHaveBeenCalled();
       await symbolsView.cancel();
 
       await editor.save();
-      await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
 
       expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
       expect(choiceCount(symbolsView)).toBe(5);
       expect(DummyProvider.getSymbols).toHaveBeenCalled();
       editor.destroy();
-      expect(symbolsView.cachedResults.get(editor)).toBeUndefined();
+      expect(mainModule.registry.cache.get(editor)).toBeUndefined();
     });
 
     it("invalidates a single provider's tags if the provider asks it to", async () => {
       registerProvider(DummyProvider, CacheClearingProvider);
       await activationPromise;
       editor = atom.workspace.getActiveTextEditor();
-      await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = atom.workspace.getModalPanels()[0].item;
       expect(choiceCount(symbolsView)).toBe(6);
       await symbolsView.cancel();
@@ -363,29 +361,29 @@ describe("SymbolsView", () => {
       spyOn(DummyProvider, "getSymbols").andCallThrough();
       spyOn(CacheClearingProvider, "getSymbols").andCallThrough();
 
-      await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       expect(choiceCount(symbolsView)).toBe(6);
       expect(DummyProvider.getSymbols).not.toHaveBeenCalled();
       expect(CacheClearingProvider.getSymbols).toHaveBeenCalled();
       await symbolsView.cancel();
       await editor.save();
 
-      expect(symbolsView.cachedResults.get(editor)).toBeUndefined();
+      expect(mainModule.registry.cache.get(editor)).toBeUndefined();
 
-      await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
 
       expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
       expect(choiceCount(symbolsView)).toBe(6);
       expect(DummyProvider.getSymbols).toHaveBeenCalled();
       expect(CacheClearingProvider.getSymbols).toHaveBeenCalled();
       editor.destroy();
-      expect(symbolsView.cachedResults.get(editor)).toBeUndefined();
+      expect(mainModule.registry.cache.get(editor)).toBeUndefined();
     });
 
     it("displays a message when no tags match text in mini-editor", async () => {
       registerProvider(DummyProvider);
       await activationPromise;
-      await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
 
       symbolsView = getSymbolsView();
       symbolsView.selectListView.refs.queryEditor.setText("nothing will match this");
@@ -407,7 +405,7 @@ describe("SymbolsView", () => {
       await activationPromise;
       editor = atom.workspace.getActiveTextEditor();
       expect(editor.getCursorBufferPosition()).toEqual([0, 0]);
-      await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
 
       symbolsView.element.querySelectorAll("li")[1].click();
@@ -422,7 +420,7 @@ describe("SymbolsView", () => {
           spyOn(CompetingExclusiveProvider, "getSymbols").andCallThrough();
           spyOn(DummyProvider, "getSymbols").andCallThrough();
           await activationPromise;
-          await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+          await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
           symbolsView = getSymbolsView();
           expect(choiceCount(symbolsView)).toBe(5);
           expect(DummyProvider.getSymbols).toHaveBeenCalled();
@@ -432,9 +430,7 @@ describe("SymbolsView", () => {
 
       describe("and one is listed in `preferCertainProviders`", () => {
         beforeEach(() => {
-          atom.config.set("symbols-view.preferCertainProviders", [
-            "symbol-provider-competing-exclusive",
-          ]);
+          atom.config.set("symbol.preferCertainProviders", ["symbol-provider-competing-exclusive"]);
         });
 
         it("prefers the one with the highest score (providers listed beating those not listed)", async () => {
@@ -442,7 +438,7 @@ describe("SymbolsView", () => {
           spyOn(CompetingExclusiveProvider, "getSymbols").andCallThrough();
           spyOn(DummyProvider, "getSymbols").andCallThrough();
           await activationPromise;
-          await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+          await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
           symbolsView = getSymbolsView();
           expect(choiceCount(symbolsView)).toBe(5);
           expect(DummyProvider.getSymbols).not.toHaveBeenCalled();
@@ -454,7 +450,7 @@ describe("SymbolsView", () => {
         beforeEach(() => {
           // Last time we referred to this one by its package name; now we use
           // its human-friendly name. They should be interchangeable.
-          atom.config.set("symbols-view.preferCertainProviders", [
+          atom.config.set("symbol.preferCertainProviders", [
             "Competing Exclusive",
             "symbol-provider-dummy",
           ]);
@@ -465,7 +461,7 @@ describe("SymbolsView", () => {
           spyOn(CompetingExclusiveProvider, "getSymbols").andCallThrough();
           spyOn(DummyProvider, "getSymbols").andCallThrough();
           await activationPromise;
-          await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+          await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
           symbolsView = getSymbolsView();
           expect(choiceCount(symbolsView)).toBe(5);
           expect(DummyProvider.getSymbols).not.toHaveBeenCalled();
@@ -478,12 +474,12 @@ describe("SymbolsView", () => {
           // Last time we referred to this one by its package name; now we use
           // its human-friendly name. They should be interchangeable.
           atom.config.set(
-            "symbols-view.preferCertainProviders",
+            "symbol.preferCertainProviders",
             ["Competing Exclusive", "symbol-provider-dummy"],
             { scopeSelector: ".source.js" },
           );
 
-          atom.config.set("symbols-view.preferCertainProviders", ["symbol-provider-dummy"]);
+          atom.config.set("symbol.preferCertainProviders", ["symbol-provider-dummy"]);
         });
 
         it("prefers the one with the highest score (providers listed earlier beating those listed later)", async () => {
@@ -491,7 +487,7 @@ describe("SymbolsView", () => {
           spyOn(CompetingExclusiveProvider, "getSymbols").andCallThrough();
           spyOn(DummyProvider, "getSymbols").andCallThrough();
           await activationPromise;
-          await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+          await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
           symbolsView = getSymbolsView();
           expect(choiceCount(symbolsView)).toBe(5);
           expect(DummyProvider.getSymbols).not.toHaveBeenCalled();
@@ -504,7 +500,7 @@ describe("SymbolsView", () => {
       it("shows the list view with an error message", async () => {
         registerProvider(EmptyProvider);
         await activationPromise;
-        atom.commands.dispatch(getEditorView(), "symbols-view:toggle-file-symbols");
+        atom.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
         await conditionPromise(() => getSymbolsView()?.selectListView.refs.emptyMessage);
         symbolsView = getSymbolsView();
 
@@ -521,8 +517,8 @@ describe("SymbolsView", () => {
       it("does not show the list view", async () => {
         registerProvider(UselessProvider);
         await activationPromise;
-        expect(mainModule.broker.providers.length).toBe(1);
-        atom.commands.dispatch(getEditorView(), "symbols-view:toggle-file-symbols");
+        expect(mainModule.registry.broker.providers.length).toBe(1);
+        atom.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
 
         await wait(1000);
         symbolsView = atom.workspace.getModalPanels()[0].item;
@@ -535,13 +531,13 @@ describe("SymbolsView", () => {
 
     describe("when the user has enabled icons in the symbols list", () => {
       beforeEach(() => {
-        atom.config.set("symbols-view.showIconsInSymbolsView", true);
+        atom.config.set("symbol.showIcons", true);
       });
 
       it("shows icons in the symbols list", async () => {
         registerProvider(DummyProvider);
         await activationPromise;
-        await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+        await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
 
         expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
@@ -599,7 +595,7 @@ describe("SymbolsView", () => {
       it("doesn't move the cursor", async () => {
         await activationPromise;
         editor.setCursorBufferPosition([0, 2]);
-        atom.commands.dispatch(getEditorView(), "symbols-view:toggle-project-symbols");
+        atom.commands.dispatch(getEditorView(), "symbol:toggle-project-symbols");
         await wait(100);
 
         expect(editor.getCursorBufferPosition()).toEqual([0, 2]);
@@ -615,12 +611,12 @@ describe("SymbolsView", () => {
 
       it("moves the cursor to the declaration", async () => {
         editor.setCursorBufferPosition([6, 24]);
-        spyOn(SymbolsView.prototype, "moveToPosition").andCallThrough();
+        spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
 
-        atom.commands.dispatch(getEditorView(), "symbols-view:go-to-declaration");
+        atom.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
 
         await conditionPromise(() => {
-          return SymbolsView.prototype.moveToPosition.callCount === 1;
+          return SymbolListView.prototype.moveToPosition.callCount === 1;
         });
         expect(editor.getCursorBufferPosition()).toEqual([2, 0]);
       });
@@ -642,7 +638,7 @@ describe("SymbolsView", () => {
 
       it("displays matches and opens the selected match", async () => {
         editor.setCursorBufferPosition([8, 14]);
-        atom.commands.dispatch(getEditorView(), "symbols-view:go-to-declaration");
+        atom.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
         symbolsView = getSymbolsView();
 
         await conditionPromise(() => {
@@ -651,11 +647,11 @@ describe("SymbolsView", () => {
 
         expect(choiceCount(symbolsView)).toBe(2);
         expect(symbolsView.element).toBeVisible();
-        spyOn(SymbolsView.prototype, "moveToPosition").andCallThrough();
+        spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
         symbolsView.selectListView.confirmSelection();
 
         await conditionPromise(() => {
-          return SymbolsView.prototype.moveToPosition.callCount === 1;
+          return SymbolListView.prototype.moveToPosition.callCount === 1;
         });
 
         editor = atom.workspace.getActiveTextEditor();
@@ -680,7 +676,7 @@ describe("SymbolsView", () => {
 
       it("doesn't do anything when no go-tos have been triggered", async () => {
         editor.setCursorBufferPosition([6, 0]);
-        atom.commands.dispatch(getEditorView(), "symbols-view:return-from-declaration");
+        atom.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
         expect(editor.getCursorBufferPosition()).toEqual([6, 0]);
       });
@@ -688,19 +684,19 @@ describe("SymbolsView", () => {
       it("returns to the previous row and column", async () => {
         editor.setCursorBufferPosition([6, 24]);
         editor = atom.workspace.getActiveTextEditor();
-        spyOn(SymbolsView.prototype, "moveToPosition").andCallThrough();
-        atom.commands.dispatch(getEditorView(), "symbols-view:go-to-declaration");
+        spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
+        atom.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
 
         await conditionPromise(() => {
-          return SymbolsView.prototype.moveToPosition.callCount === 1;
+          return SymbolListView.prototype.moveToPosition.callCount === 1;
         });
 
         expect(getEditor()).toBe(editor);
 
         expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
-        atom.commands.dispatch(getEditorView(), "symbols-view:return-from-declaration");
+        atom.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
-        await conditionPromise(() => SymbolsView.prototype.moveToPosition.callCount === 2);
+        await conditionPromise(() => SymbolListView.prototype.moveToPosition.callCount === 2);
         expect(getEditor().getCursorBufferPosition()).toEqual([6, 24]);
       });
     });
@@ -715,7 +711,7 @@ describe("SymbolsView", () => {
 
       it("doesn't do anything when no go-tos have been triggered", async () => {
         editor.setCursorBufferPosition([6, 0]);
-        atom.commands.dispatch(getEditorView(), "symbols-view:return-from-declaration");
+        atom.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
         expect(editor.getCursorBufferPosition()).toEqual([6, 0]);
       });
@@ -723,19 +719,19 @@ describe("SymbolsView", () => {
       it("returns to the previous row and column", async () => {
         editor.setCursorBufferPosition([6, 24]);
         editor = atom.workspace.getActiveTextEditor();
-        spyOn(SymbolsView.prototype, "moveToPosition").andCallThrough();
-        atom.commands.dispatch(getEditorView(), "symbols-view:go-to-declaration");
+        spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
+        atom.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
 
         await conditionPromise(() => {
-          return SymbolsView.prototype.moveToPosition.callCount === 1;
+          return SymbolListView.prototype.moveToPosition.callCount === 1;
         });
 
         expect(getEditor()).not.toBe(editor);
 
         expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
-        atom.commands.dispatch(getEditorView(), "symbols-view:return-from-declaration");
+        atom.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
-        await conditionPromise(() => SymbolsView.prototype.moveToPosition.callCount === 2);
+        await conditionPromise(() => SymbolListView.prototype.moveToPosition.callCount === 2);
 
         expect(getEditor()).toBe(editor);
         expect(getEditor().getCursorBufferPosition()).toEqual([6, 24]);
@@ -744,11 +740,11 @@ describe("SymbolsView", () => {
       it("returns to a different file when the file was already open", async () => {
         editor.setCursorBufferPosition([6, 24]);
         editor = atom.workspace.getActiveTextEditor();
-        spyOn(SymbolsView.prototype, "moveToPosition").andCallThrough();
-        atom.commands.dispatch(getEditorView(), "symbols-view:go-to-declaration");
+        spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
+        atom.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
 
         await conditionPromise(() => {
-          return SymbolsView.prototype.moveToPosition.callCount === 1;
+          return SymbolListView.prototype.moveToPosition.callCount === 1;
         });
 
         expect(getEditor()).not.toBe(editor);
@@ -757,9 +753,9 @@ describe("SymbolsView", () => {
         atom.workspace.getActivePane().destroyItem(editor);
 
         expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
-        atom.commands.dispatch(getEditorView(), "symbols-view:return-from-declaration");
+        atom.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
-        await conditionPromise(() => SymbolsView.prototype.moveToPosition.callCount === 2);
+        await conditionPromise(() => SymbolListView.prototype.moveToPosition.callCount === 2);
 
         // Make sure this is a different instance of TextEditor for the same
         // path.
@@ -779,7 +775,7 @@ describe("SymbolsView", () => {
     it("displays all symbols", async () => {
       registerProvider(DummyProvider);
       await activationPromise;
-      await dispatchAndWaitForChoices("symbols-view:toggle-project-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
       symbolsView = atom.workspace.getModalPanels()[0].item;
 
       expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
@@ -805,11 +801,11 @@ describe("SymbolsView", () => {
     });
 
     it("prefills the query field if `prefillSelectedText` is `true`", async () => {
-      atom.config.set("symbols-view.prefillSelectedText", true);
+      atom.config.set("symbol.prefillSelectedText", true);
       registerProvider(DummyProvider);
       await activationPromise;
       spyOn(editor, "getSelectedText").andReturn("Symbol on Row 13");
-      await dispatchAndWaitForChoices("symbols-view:toggle-project-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
       symbolsView = getSymbolsView();
 
       expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
@@ -832,7 +828,7 @@ describe("SymbolsView", () => {
       registerProvider(DummyProvider);
       registerProvider(SecondDummyProvider);
 
-      await dispatchAndWaitForChoices("symbols-view:toggle-project-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
       symbolsView = atom.workspace.getModalPanels()[0].item;
 
       expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
@@ -858,11 +854,11 @@ describe("SymbolsView", () => {
     });
 
     it("does not prefill the query field if `prefillSelectedText` is `false`", async () => {
-      atom.config.set("symbols-view.prefillSelectedText", false);
+      atom.config.set("symbol.prefillSelectedText", false);
       registerProvider(DummyProvider);
       await activationPromise;
       spyOn(editor, "getSelectedText").andReturn("Symbol on Row 13");
-      await dispatchAndWaitForChoices("symbols-view:toggle-project-symbols");
+      await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
       symbolsView = atom.workspace.getModalPanels()[0].item;
 
       expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
@@ -891,7 +887,7 @@ describe("SymbolsView", () => {
       registerProvider(ProgressiveProjectProvider);
       spyOn(ProgressiveProjectProvider, "getSymbols").andCallThrough();
       await activationPromise;
-      atom.commands.dispatch(getEditorView(), "symbols-view:toggle-project-symbols");
+      atom.commands.dispatch(getEditorView(), "symbol:toggle-project-symbols");
       symbolsView = atom.workspace.getModalPanels()[0].item;
       await wait(2000);
 
@@ -923,8 +919,8 @@ describe("SymbolsView", () => {
         registerProvider(TaggedProvider);
         await atom.workspace.open(directory.resolve("tagged.js"));
         await activationPromise;
-        expect(getWorkspaceView().querySelector(".symbols-view")).toBeNull();
-        await dispatchAndWaitForChoices("symbols-view:toggle-project-symbols");
+        expect(getWorkspaceView().querySelector(".symbol")).toBeNull();
+        await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
         symbolsView = getSymbolsView();
 
         expect(choiceCount(symbolsView)).toBe(1);
@@ -945,7 +941,7 @@ describe("SymbolsView", () => {
         it("doesn't open the editor", async () => {
           registerProvider(TaggedProvider);
           await activationPromise;
-          await dispatchAndWaitForChoices("symbols-view:toggle-project-symbols");
+          await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
           symbolsView = getSymbolsView();
 
           spyOn(atom.workspace, "open").andCallThrough();
@@ -971,7 +967,7 @@ describe("SymbolsView", () => {
 
       it("highlights an exact match", async () => {
         await activationPromise;
-        await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+        await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
 
         symbolsView = getSymbolsView();
         symbolsView.selectListView.refs.queryEditor.setText("quicksort");
@@ -984,7 +980,7 @@ describe("SymbolsView", () => {
 
       it("highlights a partial match", async () => {
         await activationPromise;
-        await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+        await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
 
         symbolsView.selectListView.refs.queryEditor.setText("quick");
@@ -998,7 +994,7 @@ describe("SymbolsView", () => {
 
       it("highlights multiple matches in the symbol name", async () => {
         await activationPromise;
-        await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+        await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
 
         symbolsView.selectListView.refs.queryEditor.setText("quicort");
@@ -1025,7 +1021,7 @@ describe("SymbolsView", () => {
         await activationPromise;
         editor = atom.workspace.getActiveTextEditor();
         expect(editor.getCursorBufferPosition()).toEqual([0, 0]);
-        await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+        await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
 
         symbolsView.selectListView.selectNext();
@@ -1037,14 +1033,14 @@ describe("SymbolsView", () => {
       // dev tools console? That seems to break it on a reliable basis. Not
       // sure why yet.
       it("restores previous editor state on cancel", async () => {
-        atom.config.set("symbols-view.prefillSelectedText", false);
+        atom.config.set("symbol.prefillSelectedText", false);
         registerProvider(DummyProvider);
         await activationPromise;
         const bufferRanges = [{ start: { row: 0, column: 0 }, end: { row: 0, column: 3 } }];
         editor = atom.workspace.getActiveTextEditor();
         editor.setSelectedBufferRanges(bufferRanges);
 
-        await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+        await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
 
         symbolsView.selectListView.selectNext();
@@ -1057,7 +1053,7 @@ describe("SymbolsView", () => {
 
     describe("when quickJumpToSymbol is false", () => {
       beforeEach(async () => {
-        atom.config.set("symbols-view.quickJumpToFileSymbol", false);
+        atom.config.set("symbol.quickJumpToFileSymbol", false);
         await atom.workspace.open(directory.resolve("sample.js"));
       });
 
@@ -1067,71 +1063,10 @@ describe("SymbolsView", () => {
         editor = atom.workspace.getActiveTextEditor();
         expect(editor.getCursorBufferPosition()).toEqual([0, 0]);
 
-        await dispatchAndWaitForChoices("symbols-view:toggle-file-symbols");
+        await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
         symbolsView.selectListView.selectNext();
         expect(editor.getCursorBufferPosition()).toEqual([0, 0]);
-      });
-    });
-  });
-
-  describe("when migrating legacy setting", () => {
-    beforeEach(async () => {
-      atom.config.set("symbols-view.useEditorGrammarAsCtagsLanguage", false, {
-        source: atom.config.getUserConfigPath(),
-      });
-      spyOn(atom.notifications, "addInfo");
-    });
-
-    afterEach(async () => {
-      atom.config.unset("symbols-view.useEditorGrammarAsCtagsLanguage", {
-        source: atom.config.getUserConfigPath(),
-      });
-    });
-
-    it("migrates the setting as expected", () => {
-      expect(atom.config.get("symbols-view.useEditorGrammarAsCtagsLanguage")).toBe(false);
-
-      migrateOldConfigIfNeeded({ force: true });
-
-      expect(
-        atom.config.get("symbols-view.useEditorGrammarAsCtagsLanguage", {
-          source: atom.config.getUserConfigPath(),
-        }),
-      ).toBeUndefined();
-
-      expect(
-        atom.config.get("symbol-provider-ctags.useEditorGrammarAsCtagsLanguage", {
-          source: atom.config.getUserConfigPath(),
-        }),
-      ).toBe(false);
-
-      expect(atom.notifications.addInfo).not.toHaveBeenCalled();
-    });
-
-    describe("and a scope-specific override has been made for that setting", () => {
-      beforeEach(() => {
-        atom.config.set("symbols-view.useEditorGrammarAsCtagsLanguage", true, {
-          source: "baz",
-          scopeSelector: [".source.ts"],
-        });
-      });
-
-      afterEach(() => {
-        atom.config.unset("symbols-view.useEditorGrammarAsCtagsLanguage", {
-          source: "baz",
-          scopeSelector: [".source.ts"],
-        });
-      });
-
-      it("alerts the user", () => {
-        migrateOldConfigIfNeeded({ force: true });
-
-        expect(atom.notifications.addInfo).toHaveBeenCalled();
-
-        expect(atom.notifications.addInfo.mostRecentCall?.args[1].description).toBe(
-          "The `symbols-view` package has migrated the setting `symbols-view.useEditorGrammarAsCtagsLanguage` to its new location inside the core package `symbol-provider-ctags`. If you have defined any scope-specific overrides for this setting, you’ll need to change those overrides manually.\n\nDetected overrides in the following locations:\n\n* `baz`",
-        );
       });
     });
   });

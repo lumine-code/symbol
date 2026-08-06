@@ -7,9 +7,9 @@ Turns a word in the editor into something clickable: the provider is asked about
 | Version     | `1.0.0`                                      |
 | Provided by | `provideHyperclick()` returning one provider |
 | Consumed by | a hyperclick UI package                      |
-| Owner       | `symbols-view` (bundled)                     |
+| Owner       | `symbol` (bundled)                           |
 
-**Nothing consumes this service today.** It is a live extension point with two providers and no UI package to drive them: `symbols-view` offers go-to-definition through it, and `autocomplete-jedi` offers Python definition lookup. Registering a provider costs nothing and does nothing until a consumer appears.
+**Nothing consumes this service today.** It is a live extension point with two providers and no UI package to drive them: `symbol` offers go-to-definition through it, and `autocomplete-jedi` offers Python definition lookup. Registering a provider costs nothing and does nothing until a consumer appears.
 
 ## Registration
 
@@ -83,7 +83,7 @@ Declining is the common case, so make it cheap: check the grammar and the token 
 
 **`disableForSelector` is advisory.** Both existing providers evaluate it themselves against the scope chain at `range.start` rather than relying on a consumer to honour it. Do the same, or the setting has no effect.
 
-Filter out the trivial answer. `symbols-view` drops a result whose position equals the position asked about, so standing on a definition produces no affordance at all rather than a link to where you already are.
+Filter out the trivial answer. `symbol` drops a result whose position equals the position asked about, so standing on a definition produces no affordance at all rather than a link to where you already are.
 
 Since there is no consumer, this contract is not exercised at runtime today. Treat the two existing providers as the reference for shape rather than any consumer's expectations, and expect the details to firm up when a UI package lands.
 

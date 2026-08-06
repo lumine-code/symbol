@@ -16,7 +16,7 @@ type ListControllerParams = Partial<{
   errorMessage: string;
   emptyMessage: string;
   loadingMessage: string;
-  laodingBadge: string;
+  loadingBadge: string;
 }>;
 
 type ListControllerParamName = keyof ListControllerParams;
@@ -158,7 +158,7 @@ export type SymbolMeta = {
   // doesn't return anything after this amount of time, it will be ignored.
   //
   // The provider is not in charge of ensuring that it returns results within
-  // this amount of time; `symbols-view` enforces that on its own. This value
+  // this amount of time; `symbol` enforces that on its own. This value
   // is given to providers so that they can act wisely when faced with a choice
   // between “search for more symbols” and “return what we have.”
   //
@@ -178,7 +178,7 @@ export type PreliminarySymbolMeta = Omit<SymbolMeta, "signal">;
 
 export interface SymbolProvider {
   // A human-readable name for your provider. This name may be displayed to the
-  // user, and it's how they can configure `symbols-view` to prefer
+  // user, and it's how they can configure `symbol` to prefer
   // certain providers over others.
   name: string;
 
@@ -190,7 +190,7 @@ export interface SymbolProvider {
   // wishes to express a preference for all those providers at once.
   packageName: string;
 
-  // If present, will be called on window teardown, or if `symbols-view`
+  // If present, will be called on window teardown, or if `symbol`
   // or the provider's own package is disabled.
   destroy?(): void;
 
@@ -281,7 +281,7 @@ export interface SymbolProvider {
   //   of symbols for the project. The ideal approach would be to return only
   //   those results that match `meta.query`; you may choose not to return any
   //   symbols at all until `meta.query` is of a minimum length. But you may
-  //   also return a full list of project symbols and rely on `symbols-view` to
+  //   also return a full list of project symbols and rely on `symbol` to
   //   do all of the filtering as the user types. (In the latter case,
   //   `getSymbols` will still be called after each new keystroke; a future
   //   version of this service may offer a way to control that behavior.)
@@ -330,10 +330,73 @@ export type SymbolProviderMainModule = {
   //
   // Likewise, if a provider depends upon a language server that may or may not
   // be running, it should not try to be clever about what it returns from
-  // `provideSymbols`. Instead, it should return early from `canProvideSymbols`
+  // `provideSymbol`. Instead, it should return early from `canProvideSymbols`
   // when the language server isn't running.
   //
   // A single package can supply multiple providers if need be.
   //
-  provideSymbols(): SymbolProvider | SymbolProvider[];
+  provideSymbol(): SymbolProvider | SymbolProvider[];
 };
+
+// A provider as described by the `symbol.registry` service. Raw provider
+// objects are never exposed — selection and scoring stay in the hub.
+export type ProviderDescriptor = {
+  name: string;
+  packageName: string;
+  isExclusive: boolean;
+};
+
+// The subset of `ListController` a `symbol.registry` consumer may pass along
+// with a request; the hub forwards it, opaquely, to the exclusive provider.
+export type ListControllerLike = {
+  set(params: ListControllerParams): void;
+  clear(...propNames: ListControllerParamName[]): void;
+};
+
+export type RegistryRequestOptions = {
+  listController?: ListControllerLike;
+};
+
+// The `symbol.registry` service: the hub's aggregated symbol source. See
+// `docs/symbol.registry.md` for semantics.
+export interface SymbolRegistry {
+  // Cached per-editor file symbols. Concurrent calls for the same editor
+  // share one in-flight run; a completed run is cached until invalidated.
+  // Resolves the sorted symbol list (`[]` when the selected providers found
+  // nothing), or `null` when no provider could serve the request or the run
+  // was superseded by an invalidation.
+  getFileSymbols(
+    editor: TextEditor,
+    options?: RegistryRequestOptions,
+  ): Promise<FileSymbol[] | null>;
+
+  // The cache, read without fetching. Non-null only when the entry is
+  // complete (no provider's portion pending re-query).
+  peekFileSymbols(editor: TextEditor): FileSymbol[] | null;
+
+  // `editor: null` means every editor (e.g. a config change); `provider:
+  // null` means every provider.
+  onDidInvalidateFileSymbols(
+    callback: (bundle: { editor: TextEditor | null; provider: ProviderDescriptor | null }) => void,
+  ): { dispose(): void };
+
+  // Uncached; all capable providers, exclusivity not enforced. `onSymbols`
+  // streams partial results as providers answer.
+  searchProject(
+    editor: TextEditor,
+    query?: string,
+    options?: RegistryRequestOptions & {
+      signal?: AbortSignal;
+      onSymbols?: (symbols: ProjectSymbol[]) => void;
+    },
+  ): Promise<ProjectSymbol[] | null>;
+
+  // Uncached go-to-declaration lookup.
+  findDeclarations(
+    editor: TextEditor,
+    options?: RegistryRequestOptions & { range?: AtomRange; signal?: AbortSignal },
+  ): Promise<ProjectSymbol[] | null>;
+
+  providers(): ProviderDescriptor[];
+  onDidChangeProviders(callback: () => void): { dispose(): void };
+}
