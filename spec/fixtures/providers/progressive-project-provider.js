@@ -1,4 +1,4 @@
-const { Point } = require('atom');
+const { Point } = require('lumine');
 
 function last (arr) {
   return arr[arr.length - 1];
@@ -35,7 +35,7 @@ module.exports = {
     return meta.type === 'project';
   },
   getSymbols (meta, controller) {
-    let root = last(atom.project.getPaths());
+    let root = last(lumine.project.getPaths());
     let { type, query = '' } = meta;
     if (type !== 'project') return [];
 

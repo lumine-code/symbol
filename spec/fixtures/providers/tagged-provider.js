@@ -1,4 +1,4 @@
-const { Point } = require('atom');
+const { Point } = require('lumine');
 const path = require('path');
 
 function last (arr) {
@@ -27,7 +27,7 @@ module.exports = {
     return true;
   },
   getSymbols (meta) {
-    let root = last(atom.project.getPaths());
+    let root = last(lumine.project.getPaths());
     let { editor, type } = meta;
     let results = [];
     if (!type.includes('project')) return [];

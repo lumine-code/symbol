@@ -1,25 +1,25 @@
 {
-  "atom-text-editor:not([mini])": {
+  "lumine-text-editor:not([mini])": {
     "cmdorctrl-r": "symbol:toggle-file-symbols"
   },
-  // `atom-workspace` rather than `body`, which is the fleet's one spelling for
+  // `lumine-workspace` rather than `body`, which is the fleet's one spelling for
   // global scope. cmdorctrl-shift-r is a cross-editor convention and stays out
   // of the alt- tier.
-  "atom-workspace": {
+  "lumine-workspace": {
     "cmdorctrl-shift-r": "symbol:toggle-project-symbols"
   },
   // A genuine keystroke divergence rather than a cmd/ctrl swap, so it keeps the
   // .platform-* prefix: a package's keymap files are added one at a time with
   // no platform filtering, so keymaps/darwin.json here would load everywhere.
-  ".platform-darwin atom-text-editor:not([mini])": {
+  ".platform-darwin lumine-text-editor:not([mini])": {
     "cmd-alt-down": "symbol:go-to-declaration",
     "cmd-alt-up": "symbol:return-from-declaration"
   },
-  ".platform-win32 atom-text-editor:not([mini])": {
+  ".platform-win32 lumine-text-editor:not([mini])": {
     "ctrl-alt-shift-down": "symbol:go-to-declaration",
     "ctrl-alt-shift-up": "symbol:return-from-declaration"
   },
-  ".platform-linux atom-text-editor:not([mini])": {
+  ".platform-linux lumine-text-editor:not([mini])": {
     "ctrl-alt-shift-down": "symbol:go-to-declaration",
     "ctrl-alt-shift-up": "symbol:return-from-declaration"
   }

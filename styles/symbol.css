@@ -58,7 +58,7 @@
   background-color: hsl(from var(--background-color-info) calc(h + 337.5) s l) !important;
 }
 
-atom-panel.modal .symbol {
+lumine-panel.modal .symbol {
   .primary-line {
     display: flex !important;
     flex-direction: row;

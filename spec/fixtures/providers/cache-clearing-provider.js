@@ -1,4 +1,4 @@
-const { Emitter, Point } = require('atom');
+const { Emitter, Point } = require('lumine');
 // const path = require('path');
 
 function last (arr) {
@@ -28,7 +28,7 @@ module.exports = {
         name: 'Transient symbol on row 2'
       }];
     } else if (type === 'project') {
-      let root = last(atom.project.getPaths());
+      let root = last(lumine.project.getPaths());
       let count = editor.getLineCount();
       // Put a symbol on every third line.
       for (let i = 0; i < count; i += 3) {

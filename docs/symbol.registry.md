@@ -82,7 +82,7 @@ interface SymbolRegistry {
 module.exports = {
   consumeSymbolRegistry(registry) {
     const render = async () => {
-      const editor = atom.workspace.getActiveTextEditor();
+      const editor = lumine.workspace.getActiveTextEditor();
       if (!editor) return;
       const symbols = await registry.getFileSymbols(editor);
       if (!symbols) return; // superseded or no providers — keep what we have
@@ -91,7 +91,7 @@ module.exports = {
 
     render();
     return registry.onDidInvalidateFileSymbols(({ editor }) => {
-      if (editor && editor !== atom.workspace.getActiveTextEditor()) return;
+      if (editor && editor !== lumine.workspace.getActiveTextEditor()) return;
       render();
     });
   },

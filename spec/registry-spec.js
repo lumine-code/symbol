@@ -1,5 +1,5 @@
 const path = require("path");
-const { Emitter, Point, Range } = require("atom");
+const { Emitter, Point, Range } = require("lumine");
 const temp = require("@lumine-code/temp");
 
 const Registry = require("../lib/registry");
@@ -30,9 +30,9 @@ describe("symbol registry", () => {
     jasmine.unspy(Date, "now");
     jasmine.unspy(global, "setTimeout");
 
-    atom.config.set("symbol.providerTimeout", 1000);
+    lumine.config.set("symbol.providerTimeout", 1000);
     registry = new Registry();
-    editor = await atom.workspace.open();
+    editor = await lumine.workspace.open();
   });
 
   afterEach(() => {
@@ -124,7 +124,7 @@ describe("symbol registry", () => {
     expect(first.map((s) => s.name)).toEqual(["a", "b"]);
 
     // A clear scoped to another editor leaves this one's cache alone.
-    let other = await atom.workspace.open();
+    let other = await lumine.workspace.open();
     emitter.emit("clear", { editor: other });
     expect(registry.peekFileSymbols(editor)).not.toBeNull();
 

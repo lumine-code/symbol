@@ -1,4 +1,4 @@
-const { Point } = require('atom');
+const { Point } = require('lumine');
 
 // A provider that ignores its signal and answers well after `providerTimeout`
 // has run out. It is the only kind whose symbols can still turn up once the

@@ -1,4 +1,4 @@
-const { Point } = require('atom');
+const { Point } = require('lumine');
 
 function wait (ms) {
   return new Promise(resolve => {

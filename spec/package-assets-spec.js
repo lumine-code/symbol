@@ -26,7 +26,7 @@ describe("symbol package assets", () => {
 
   it("scopes the stylesheet to the renamed class root", () => {
     const css = read("styles/symbol.css");
-    expect(css).toContain("atom-panel.modal .symbol");
+    expect(css).toContain("lumine-panel.modal .symbol");
     expect(css).toContain(".symbol-badge-variant-0");
     expect(css).toContain(".symbol-badge-variant-f");
     expect(css).not.toContain("symbols-view");

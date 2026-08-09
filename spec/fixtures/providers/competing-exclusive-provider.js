@@ -1,4 +1,4 @@
-const { Point } = require('atom');
+const { Point } = require('lumine');
 
 function last (arr) {
   return arr[arr.length - 1];
@@ -24,7 +24,7 @@ module.exports = {
         });
       }
     } else if (type === 'project') {
-      let root = last(atom.project.getPaths());
+      let root = last(lumine.project.getPaths());
       let count = editor.getLineCount();
       // Put a symbol on every third line.
       for (let i = 0; i < count; i += 3) {

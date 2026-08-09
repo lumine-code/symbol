@@ -1,4 +1,4 @@
-const { Point } = require('atom');
+const { Point } = require('lumine');
 
 module.exports = {
   packageName: 'symbol-provider-empty',

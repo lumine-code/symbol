@@ -20,12 +20,12 @@ To install `symbol` search for _symbol_ in the Install pane of the Lumine settin
 
 ## Commands
 
-Commands available in `atom-workspace`:
+Commands available in `lumine-workspace`:
 
 - `symbol:toggle-project-symbols`: search for a symbol across the whole project,
 - `symbol:show-active-providers`: list the symbol providers currently available.
 
-Commands available in `atom-text-editor:not([mini])`:
+Commands available in `lumine-text-editor:not([mini])`:
 
 - `symbol:toggle-file-symbols`: browse the symbols in the active editor,
 - `symbol:go-to-declaration`: jump to the declaration of the symbol under the cursor,

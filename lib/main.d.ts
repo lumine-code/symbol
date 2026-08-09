@@ -1,4 +1,4 @@
-import type { TextEditor, Point, Range as AtomRange } from "atom";
+import type { TextEditor, Point, Range as LumineRange } from "lumine";
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -43,7 +43,7 @@ export type SymbolRange = {
   // be used to highlight the token when selected by the user, though that
   // depends on the user's settings. At least one of `position` and `range`
   // must exist.
-  range: AtomRange;
+  range: LumineRange;
 };
 
 export type SymbolDirectoryAndFile = {
@@ -394,7 +394,7 @@ export interface SymbolRegistry {
   // Uncached go-to-declaration lookup.
   findDeclarations(
     editor: TextEditor,
-    options?: RegistryRequestOptions & { range?: AtomRange; signal?: AbortSignal },
+    options?: RegistryRequestOptions & { range?: LumineRange; signal?: AbortSignal },
   ): Promise<ProjectSymbol[] | null>;
 
   providers(): ProviderDescriptor[];

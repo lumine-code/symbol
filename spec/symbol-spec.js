@@ -34,24 +34,24 @@ function choiceCount(symbolsView) {
 }
 
 function getWorkspaceView() {
-  return atom.views.getView(atom.workspace);
+  return lumine.views.getView(lumine.workspace);
 }
 
 function getEditor() {
-  return atom.workspace.getActiveTextEditor();
+  return lumine.workspace.getActiveTextEditor();
 }
 
 function getEditorView() {
-  return atom.views.getView(atom.workspace.getActiveTextEditor());
+  return lumine.views.getView(lumine.workspace.getActiveTextEditor());
 }
 
 function getSymbolsView() {
-  return atom.workspace.getModalPanels()[0]?.item;
+  return lumine.workspace.getModalPanels()[0]?.item;
 }
 
 async function dispatchAndWaitForChoices(commandName) {
-  atom.commands.dispatch(getEditorView(), commandName);
-  let symbolsView = atom.workspace.getModalPanels()[0].item;
+  lumine.commands.dispatch(getEditorView(), commandName);
+  let symbolsView = lumine.workspace.getModalPanels()[0].item;
   await conditionPromise(() => {
     let count = symbolsView.element.querySelectorAll("li").length;
     return count > 0;
@@ -59,10 +59,10 @@ async function dispatchAndWaitForChoices(commandName) {
 }
 
 function registerProvider(...args) {
-  let pkg = atom.packages.getActivePackage("symbol");
+  let pkg = lumine.packages.getActivePackage("symbol");
   let main = pkg?.mainModule;
   if (!main) {
-    let disposable = atom.packages.onDidActivatePackage((pack) => {
+    let disposable = lumine.packages.onDidActivatePackage((pack) => {
       if (pack.name !== "symbol") return;
       for (let provider of args) {
         pack.mainModule.consumeSymbol(provider);
@@ -72,7 +72,7 @@ function registerProvider(...args) {
     // If we let the package lazy-activate the first time a command is invoked,
     // we lose an opportunity to add mock providers. So we should activate it
     // manually.
-    atom.packages.getLoadedPackage("symbol").activateNow();
+    lumine.packages.getLoadedPackage("symbol").activateNow();
   } else {
     for (let provider of args) {
       main.consumeSymbol(provider);
@@ -87,32 +87,32 @@ describe("symbol", () => {
     jasmine.unspy(Date, "now");
     jasmine.unspy(global, "setTimeout");
 
-    atom.project.setPaths([temp.mkdirSync("other-dir-"), temp.mkdirSync("symbol-spec-")]);
+    lumine.project.setPaths([temp.mkdirSync("other-dir-"), temp.mkdirSync("symbol-spec-")]);
 
-    directory = atom.project.getDirectories()[1];
+    directory = lumine.project.getDirectories()[1];
 
-    fs.copySync(path.join(__dirname, "fixtures", "js"), atom.project.getPaths()[1]);
+    fs.copySync(path.join(__dirname, "fixtures", "js"), lumine.project.getPaths()[1]);
 
-    atom.config.set("symbol.showProviderNames", false);
-    atom.config.set("symbol.showIcons", false);
+    lumine.config.set("symbol.showProviderNames", false);
+    lumine.config.set("symbol.showIcons", false);
 
-    activationPromise = atom.packages.activatePackage("symbol");
+    activationPromise = lumine.packages.activatePackage("symbol");
     await activationPromise.then(() => {
-      mainModule = atom.packages.getActivePackage("symbol").mainModule;
+      mainModule = lumine.packages.getActivePackage("symbol").mainModule;
     });
-    await atom.packages.activatePackage("language-javascript");
+    await lumine.packages.activatePackage("language-javascript");
     jasmine.attachToDOM(getWorkspaceView());
   });
 
   afterEach(async () => {
-    await atom.packages.deactivatePackage("symbol");
+    await lumine.packages.deactivatePackage("symbol");
   });
 
   describe("when toggling file symbols", () => {
     beforeEach(async () => {
-      atom.config.set("symbol.providerTimeout", 500);
-      await atom.workspace.open(directory.resolve("sample.js"));
-      editor = atom.workspace.getActiveTextEditor();
+      lumine.config.set("symbol.providerTimeout", 500);
+      await lumine.workspace.open(directory.resolve("sample.js"));
+      editor = lumine.workspace.getActiveTextEditor();
       languageMode = editor.getBuffer().getLanguageMode();
       if (languageMode.ready) await languageMode.ready;
     });
@@ -155,7 +155,7 @@ describe("symbol", () => {
     });
 
     it("prefills the query field if `prefillSelectedText` is `true`", async () => {
-      atom.config.set("symbol.prefillSelectedText", true);
+      lumine.config.set("symbol.prefillSelectedText", true);
       registerProvider(DummyProvider);
       await activationPromise;
       spyOn(editor, "getSelectedText").andReturn("Symbol on Row 13");
@@ -183,7 +183,7 @@ describe("symbol", () => {
     });
 
     it("does not prefill the query field if `prefillSelectedText` is `false`", async () => {
-      atom.config.set("symbol.prefillSelectedText", false);
+      lumine.config.set("symbol.prefillSelectedText", false);
       registerProvider(DummyProvider);
       await activationPromise;
       spyOn(editor, "getSelectedText").andReturn("Symbol on Row 13");
@@ -212,9 +212,9 @@ describe("symbol", () => {
       registerProvider(DummyProvider, VerySlowProvider);
       await activationPromise;
       expect(mainModule.registry.broker.providers.length).toBe(2);
-      atom.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
+      lumine.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
 
-      symbolsView = atom.workspace.getModalPanels()[0].item;
+      symbolsView = lumine.workspace.getModalPanels()[0].item;
       await conditionPromise(async () => {
         await getOrScheduleUpdatePromise();
         let count = symbolsView.element.querySelectorAll("li").length;
@@ -287,7 +287,7 @@ describe("symbol", () => {
       await activationPromise;
       expect(mainModule.registry.broker.providers.length).toBe(2);
 
-      let meta = { type: "file", editor, paths: atom.project.getPaths() };
+      let meta = { type: "file", editor, paths: lumine.project.getPaths() };
       let selected = await mainModule.registry.broker.select(meta);
       let names = selected.map((provider) => provider.name);
 
@@ -305,11 +305,11 @@ describe("symbol", () => {
       // `ListController` privilege, not about the budget, so give the provider
       // one its own delays cannot exhaust. A provider that truly hangs still
       // fails the spec at jasmine's own five-second cap.
-      atom.config.set("symbol.providerTimeout", 30000);
+      lumine.config.set("symbol.providerTimeout", 30000);
       registerProvider(AsyncDummyProvider);
       await activationPromise;
       expect(mainModule.registry.broker.providers.length).toBe(1);
-      atom.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
+      lumine.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
       spyOn(symbolsView.selectListView, "update").andCallThrough();
       await conditionPromise(async () => {
@@ -326,9 +326,9 @@ describe("symbol", () => {
     it("caches tags until the editor changes", async () => {
       registerProvider(DummyProvider);
       await activationPromise;
-      editor = atom.workspace.getActiveTextEditor();
+      editor = lumine.workspace.getActiveTextEditor();
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-      symbolsView = atom.workspace.getModalPanels()[0].item;
+      symbolsView = lumine.workspace.getModalPanels()[0].item;
       await symbolsView.cancel();
 
       spyOn(DummyProvider, "getSymbols").andCallThrough();
@@ -351,9 +351,9 @@ describe("symbol", () => {
     it("invalidates a single provider's tags if the provider asks it to", async () => {
       registerProvider(DummyProvider, CacheClearingProvider);
       await activationPromise;
-      editor = atom.workspace.getActiveTextEditor();
+      editor = lumine.workspace.getActiveTextEditor();
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-      symbolsView = atom.workspace.getModalPanels()[0].item;
+      symbolsView = lumine.workspace.getModalPanels()[0].item;
       expect(choiceCount(symbolsView)).toBe(6);
       await symbolsView.cancel();
       await wait(100);
@@ -403,7 +403,7 @@ describe("symbol", () => {
     it("moves the cursor to the selected function", async () => {
       registerProvider(DummyProvider);
       await activationPromise;
-      editor = atom.workspace.getActiveTextEditor();
+      editor = lumine.workspace.getActiveTextEditor();
       expect(editor.getCursorBufferPosition()).toEqual([0, 0]);
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
@@ -430,7 +430,9 @@ describe("symbol", () => {
 
       describe("and one is listed in `preferCertainProviders`", () => {
         beforeEach(() => {
-          atom.config.set("symbol.preferCertainProviders", ["symbol-provider-competing-exclusive"]);
+          lumine.config.set("symbol.preferCertainProviders", [
+            "symbol-provider-competing-exclusive",
+          ]);
         });
 
         it("prefers the one with the highest score (providers listed beating those not listed)", async () => {
@@ -450,7 +452,7 @@ describe("symbol", () => {
         beforeEach(() => {
           // Last time we referred to this one by its package name; now we use
           // its human-friendly name. They should be interchangeable.
-          atom.config.set("symbol.preferCertainProviders", [
+          lumine.config.set("symbol.preferCertainProviders", [
             "Competing Exclusive",
             "symbol-provider-dummy",
           ]);
@@ -473,13 +475,13 @@ describe("symbol", () => {
         beforeEach(() => {
           // Last time we referred to this one by its package name; now we use
           // its human-friendly name. They should be interchangeable.
-          atom.config.set(
+          lumine.config.set(
             "symbol.preferCertainProviders",
             ["Competing Exclusive", "symbol-provider-dummy"],
             { scopeSelector: ".source.js" },
           );
 
-          atom.config.set("symbol.preferCertainProviders", ["symbol-provider-dummy"]);
+          lumine.config.set("symbol.preferCertainProviders", ["symbol-provider-dummy"]);
         });
 
         it("prefers the one with the highest score (providers listed earlier beating those listed later)", async () => {
@@ -500,7 +502,7 @@ describe("symbol", () => {
       it("shows the list view with an error message", async () => {
         registerProvider(EmptyProvider);
         await activationPromise;
-        atom.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
+        lumine.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
         await conditionPromise(() => getSymbolsView()?.selectListView.refs.emptyMessage);
         symbolsView = getSymbolsView();
 
@@ -518,10 +520,10 @@ describe("symbol", () => {
         registerProvider(UselessProvider);
         await activationPromise;
         expect(mainModule.registry.broker.providers.length).toBe(1);
-        atom.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
+        lumine.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
 
         await wait(1000);
-        symbolsView = atom.workspace.getModalPanels()[0].item;
+        symbolsView = lumine.workspace.getModalPanels()[0].item;
 
         // List view should not be visible, nor should it have any options.
         expect(symbolsView.element.querySelectorAll("li").length).toBe(0);
@@ -531,7 +533,7 @@ describe("symbol", () => {
 
     describe("when the user has enabled icons in the symbols list", () => {
       beforeEach(() => {
-        atom.config.set("symbol.showIcons", true);
+        lumine.config.set("symbol.showIcons", true);
       });
 
       it("shows icons in the symbols list", async () => {
@@ -583,19 +585,19 @@ describe("symbol", () => {
 
   describe("when going to declaration", () => {
     beforeEach(async () => {
-      await atom.workspace.open(directory.resolve("sample.js"));
+      await lumine.workspace.open(directory.resolve("sample.js"));
     });
 
     describe("when no declaration is found", () => {
       beforeEach(async () => {
         registerProvider(EmptyProvider);
-        editor = atom.workspace.getActiveTextEditor();
+        editor = lumine.workspace.getActiveTextEditor();
       });
 
       it("doesn't move the cursor", async () => {
         await activationPromise;
         editor.setCursorBufferPosition([0, 2]);
-        atom.commands.dispatch(getEditorView(), "symbol:toggle-project-symbols");
+        lumine.commands.dispatch(getEditorView(), "symbol:toggle-project-symbols");
         await wait(100);
 
         expect(editor.getCursorBufferPosition()).toEqual([0, 2]);
@@ -605,15 +607,15 @@ describe("symbol", () => {
     describe("when there is a single matching declaration", () => {
       beforeEach(async () => {
         registerProvider(TaggedProvider);
-        await atom.workspace.open(directory.resolve("tagged.js"));
-        editor = atom.workspace.getActiveTextEditor();
+        await lumine.workspace.open(directory.resolve("tagged.js"));
+        editor = lumine.workspace.getActiveTextEditor();
       });
 
       it("moves the cursor to the declaration", async () => {
         editor.setCursorBufferPosition([6, 24]);
         spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
 
-        atom.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
 
         await conditionPromise(() => {
           return SymbolListView.prototype.moveToPosition.callCount === 1;
@@ -627,8 +629,8 @@ describe("symbol", () => {
         registerProvider(TaggedProvider);
         TaggedProvider.mockResultCount = 2;
         TaggedProvider.mockFileName = "other-file.js";
-        await atom.workspace.open(directory.resolve("tagged.js"));
-        editor = atom.workspace.getActiveTextEditor();
+        await lumine.workspace.open(directory.resolve("tagged.js"));
+        editor = lumine.workspace.getActiveTextEditor();
         await activationPromise;
       });
 
@@ -638,7 +640,7 @@ describe("symbol", () => {
 
       it("displays matches and opens the selected match", async () => {
         editor.setCursorBufferPosition([8, 14]);
-        atom.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
         symbolsView = getSymbolsView();
 
         await conditionPromise(() => {
@@ -654,13 +656,13 @@ describe("symbol", () => {
           return SymbolListView.prototype.moveToPosition.callCount === 1;
         });
 
-        editor = atom.workspace.getActiveTextEditor();
+        editor = lumine.workspace.getActiveTextEditor();
 
-        expect(atom.workspace.getActiveTextEditor().getPath()).toBe(
+        expect(lumine.workspace.getActiveTextEditor().getPath()).toBe(
           directory.resolve("other-file.js"),
         );
 
-        expect(atom.workspace.getActiveTextEditor().getCursorBufferPosition()).toEqual([2, 0]);
+        expect(lumine.workspace.getActiveTextEditor().getCursorBufferPosition()).toEqual([2, 0]);
       });
     });
   });
@@ -669,23 +671,23 @@ describe("symbol", () => {
     describe("in the same file", () => {
       beforeEach(async () => {
         registerProvider(TaggedProvider);
-        await atom.workspace.open(directory.resolve("tagged.js"));
+        await lumine.workspace.open(directory.resolve("tagged.js"));
         await activationPromise;
-        editor = atom.workspace.getActiveTextEditor();
+        editor = lumine.workspace.getActiveTextEditor();
       });
 
       it("doesn't do anything when no go-tos have been triggered", async () => {
         editor.setCursorBufferPosition([6, 0]);
-        atom.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
         expect(editor.getCursorBufferPosition()).toEqual([6, 0]);
       });
 
       it("returns to the previous row and column", async () => {
         editor.setCursorBufferPosition([6, 24]);
-        editor = atom.workspace.getActiveTextEditor();
+        editor = lumine.workspace.getActiveTextEditor();
         spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
-        atom.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
 
         await conditionPromise(() => {
           return SymbolListView.prototype.moveToPosition.callCount === 1;
@@ -694,7 +696,7 @@ describe("symbol", () => {
         expect(getEditor()).toBe(editor);
 
         expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
-        atom.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
         await conditionPromise(() => SymbolListView.prototype.moveToPosition.callCount === 2);
         expect(getEditor().getCursorBufferPosition()).toEqual([6, 24]);
@@ -704,23 +706,23 @@ describe("symbol", () => {
     describe("in a different file", () => {
       beforeEach(async () => {
         registerProvider(TaggedProvider);
-        await atom.workspace.open(directory.resolve("sample.js"));
+        await lumine.workspace.open(directory.resolve("sample.js"));
         await activationPromise;
-        editor = atom.workspace.getActiveTextEditor();
+        editor = lumine.workspace.getActiveTextEditor();
       });
 
       it("doesn't do anything when no go-tos have been triggered", async () => {
         editor.setCursorBufferPosition([6, 0]);
-        atom.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
         expect(editor.getCursorBufferPosition()).toEqual([6, 0]);
       });
 
       it("returns to the previous row and column", async () => {
         editor.setCursorBufferPosition([6, 24]);
-        editor = atom.workspace.getActiveTextEditor();
+        editor = lumine.workspace.getActiveTextEditor();
         spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
-        atom.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
 
         await conditionPromise(() => {
           return SymbolListView.prototype.moveToPosition.callCount === 1;
@@ -729,7 +731,7 @@ describe("symbol", () => {
         expect(getEditor()).not.toBe(editor);
 
         expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
-        atom.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
         await conditionPromise(() => SymbolListView.prototype.moveToPosition.callCount === 2);
 
@@ -739,9 +741,9 @@ describe("symbol", () => {
 
       it("returns to a different file when the file was already open", async () => {
         editor.setCursorBufferPosition([6, 24]);
-        editor = atom.workspace.getActiveTextEditor();
+        editor = lumine.workspace.getActiveTextEditor();
         spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
-        atom.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
 
         await conditionPromise(() => {
           return SymbolListView.prototype.moveToPosition.callCount === 1;
@@ -750,10 +752,10 @@ describe("symbol", () => {
         expect(getEditor()).not.toBe(editor);
         let editorPath = editor.getPath();
         let editorId = editor.id;
-        atom.workspace.getActivePane().destroyItem(editor);
+        lumine.workspace.getActivePane().destroyItem(editor);
 
         expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
-        atom.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
         await conditionPromise(() => SymbolListView.prototype.moveToPosition.callCount === 2);
 
@@ -768,21 +770,21 @@ describe("symbol", () => {
 
   describe("when toggling project symbols", () => {
     beforeEach(async () => {
-      await atom.workspace.open(directory.resolve("sample.js"));
-      editor = atom.workspace.getActiveTextEditor();
+      await lumine.workspace.open(directory.resolve("sample.js"));
+      editor = lumine.workspace.getActiveTextEditor();
     });
 
     it("displays all symbols", async () => {
       registerProvider(DummyProvider);
       await activationPromise;
       await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
-      symbolsView = atom.workspace.getModalPanels()[0].item;
+      symbolsView = lumine.workspace.getModalPanels()[0].item;
 
       expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
       expect(document.body.contains(symbolsView.element)).toBe(true);
       expect(symbolsView.element.querySelectorAll("li").length).toBe(5);
 
-      let root = atom.project.getPaths()[1];
+      let root = lumine.project.getPaths()[1];
       let resolved = directory.resolve("other-file.js");
       let relative = `${path.basename(root)}${resolved.replace(root, "")}`;
 
@@ -801,7 +803,7 @@ describe("symbol", () => {
     });
 
     it("prefills the query field if `prefillSelectedText` is `true`", async () => {
-      atom.config.set("symbol.prefillSelectedText", true);
+      lumine.config.set("symbol.prefillSelectedText", true);
       registerProvider(DummyProvider);
       await activationPromise;
       spyOn(editor, "getSelectedText").andReturn("Symbol on Row 13");
@@ -812,7 +814,7 @@ describe("symbol", () => {
       expect(document.body.contains(symbolsView.element)).toBe(true);
       expect(symbolsView.element.querySelectorAll("li").length).toBe(1);
 
-      let root = atom.project.getPaths()[1];
+      let root = lumine.project.getPaths()[1];
       let resolved = directory.resolve("other-file.js");
       let relative = `${path.basename(root)}${resolved.replace(root, "")}`;
 
@@ -829,13 +831,13 @@ describe("symbol", () => {
       registerProvider(SecondDummyProvider);
 
       await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
-      symbolsView = atom.workspace.getModalPanels()[0].item;
+      symbolsView = lumine.workspace.getModalPanels()[0].item;
 
       expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
       expect(document.body.contains(symbolsView.element)).toBe(true);
       expect(symbolsView.element.querySelectorAll("li").length).toBe(10);
 
-      let root = atom.project.getPaths()[1];
+      let root = lumine.project.getPaths()[1];
       let resolved = directory.resolve("other-file.js");
       let relative = `${path.basename(root)}${resolved.replace(root, "")}`;
 
@@ -854,18 +856,18 @@ describe("symbol", () => {
     });
 
     it("does not prefill the query field if `prefillSelectedText` is `false`", async () => {
-      atom.config.set("symbol.prefillSelectedText", false);
+      lumine.config.set("symbol.prefillSelectedText", false);
       registerProvider(DummyProvider);
       await activationPromise;
       spyOn(editor, "getSelectedText").andReturn("Symbol on Row 13");
       await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
-      symbolsView = atom.workspace.getModalPanels()[0].item;
+      symbolsView = lumine.workspace.getModalPanels()[0].item;
 
       expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
       expect(document.body.contains(symbolsView.element)).toBe(true);
       expect(symbolsView.element.querySelectorAll("li").length).toBe(5);
 
-      let root = atom.project.getPaths()[1];
+      let root = lumine.project.getPaths()[1];
       let resolved = directory.resolve("other-file.js");
       let relative = `${path.basename(root)}${resolved.replace(root, "")}`;
 
@@ -887,8 +889,8 @@ describe("symbol", () => {
       registerProvider(ProgressiveProjectProvider);
       spyOn(ProgressiveProjectProvider, "getSymbols").andCallThrough();
       await activationPromise;
-      atom.commands.dispatch(getEditorView(), "symbol:toggle-project-symbols");
-      symbolsView = atom.workspace.getModalPanels()[0].item;
+      lumine.commands.dispatch(getEditorView(), "symbol:toggle-project-symbols");
+      symbolsView = lumine.workspace.getModalPanels()[0].item;
       await wait(2000);
 
       expect(symbolsView.element.querySelectorAll("li .primary-line").length).toBe(0);
@@ -912,12 +914,12 @@ describe("symbol", () => {
 
     describe("when there is only one project", () => {
       beforeEach(() => {
-        atom.project.setPaths([directory.getPath()]);
+        lumine.project.setPaths([directory.getPath()]);
       });
 
       it("does not include the root directory's name when displaying the symbol's filename", async () => {
         registerProvider(TaggedProvider);
-        await atom.workspace.open(directory.resolve("tagged.js"));
+        await lumine.workspace.open(directory.resolve("tagged.js"));
         await activationPromise;
         expect(getWorkspaceView().querySelector(".symbol")).toBeNull();
         await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
@@ -944,13 +946,13 @@ describe("symbol", () => {
           await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
           symbolsView = getSymbolsView();
 
-          spyOn(atom.workspace, "open").andCallThrough();
+          spyOn(lumine.workspace, "open").andCallThrough();
 
           symbolsView.element.querySelector("li:first-child").click();
 
           await conditionPromise(() => symbolsView.selectListView.refs.errorMessage);
 
-          expect(atom.workspace.open).not.toHaveBeenCalled();
+          expect(lumine.workspace.open).not.toHaveBeenCalled();
           expect(symbolsView.selectListView.refs.errorMessage.textContent.length).toBeGreaterThan(
             0,
           );
@@ -960,8 +962,8 @@ describe("symbol", () => {
 
     describe("match highlighting", () => {
       beforeEach(async () => {
-        await atom.workspace.open(directory.resolve("sample.js"));
-        editor = atom.workspace.getActiveTextEditor();
+        await lumine.workspace.open(directory.resolve("sample.js"));
+        editor = lumine.workspace.getActiveTextEditor();
         registerProvider(QuicksortProvider);
       });
 
@@ -1010,8 +1012,8 @@ describe("symbol", () => {
 
     describe("when quickJumpToSymbol is true", () => {
       beforeEach(async () => {
-        await atom.workspace.open(directory.resolve("sample.js"));
-        editor = atom.workspace.getActiveTextEditor();
+        await lumine.workspace.open(directory.resolve("sample.js"));
+        editor = lumine.workspace.getActiveTextEditor();
         languageMode = editor.getBuffer().getLanguageMode();
         if (languageMode.ready) await languageMode.ready;
       });
@@ -1019,7 +1021,7 @@ describe("symbol", () => {
       it("jumps to the selected function", async () => {
         registerProvider(DummyProvider);
         await activationPromise;
-        editor = atom.workspace.getActiveTextEditor();
+        editor = lumine.workspace.getActiveTextEditor();
         expect(editor.getCursorBufferPosition()).toEqual([0, 0]);
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
@@ -1033,11 +1035,11 @@ describe("symbol", () => {
       // dev tools console? That seems to break it on a reliable basis. Not
       // sure why yet.
       it("restores previous editor state on cancel", async () => {
-        atom.config.set("symbol.prefillSelectedText", false);
+        lumine.config.set("symbol.prefillSelectedText", false);
         registerProvider(DummyProvider);
         await activationPromise;
         const bufferRanges = [{ start: { row: 0, column: 0 }, end: { row: 0, column: 3 } }];
-        editor = atom.workspace.getActiveTextEditor();
+        editor = lumine.workspace.getActiveTextEditor();
         editor.setSelectedBufferRanges(bufferRanges);
 
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
@@ -1053,14 +1055,14 @@ describe("symbol", () => {
 
     describe("when quickJumpToSymbol is false", () => {
       beforeEach(async () => {
-        atom.config.set("symbol.quickJumpToFileSymbol", false);
-        await atom.workspace.open(directory.resolve("sample.js"));
+        lumine.config.set("symbol.quickJumpToFileSymbol", false);
+        await lumine.workspace.open(directory.resolve("sample.js"));
       });
 
       it("won't jump to the selected function", async () => {
         registerProvider(DummyProvider);
         await activationPromise;
-        editor = atom.workspace.getActiveTextEditor();
+        editor = lumine.workspace.getActiveTextEditor();
         expect(editor.getCursorBufferPosition()).toEqual([0, 0]);
 
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
