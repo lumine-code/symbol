@@ -4,7 +4,6 @@ const temp = require("@lumine-code/temp");
 
 const Registry = require("../lib/registry");
 
-
 function makeProvider(overrides = {}) {
   return {
     packageName: "symbol-provider-stub",

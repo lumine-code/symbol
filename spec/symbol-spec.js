@@ -19,7 +19,6 @@ const CompetingExclusiveProvider = require("./fixtures/providers/competing-exclu
 const AbortHonoringProvider = require("./fixtures/providers/abort-honoring-provider.js");
 const LateProvider = require("./fixtures/providers/late-provider.js");
 
-
 async function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
