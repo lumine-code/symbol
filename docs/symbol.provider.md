@@ -89,7 +89,7 @@ The three request types want different things. `file` wants every symbol in the 
 
 `timeoutMs` is enforced by `symbol`, not by you — it is passed so you can choose between searching further and returning what you have. It is present only when the symbol list is not on screen yet; once it is, you may take as long as you like.
 
-`listController` is passed **only to the exclusive provider**, and lets it set `errorMessage`, `emptyMessage`, `loadingMessage`, or `loadingBadge` on the list. Use it to explain an empty result — "query must be at least 3 characters" — rather than leaving the user with a blank panel.
+`listController` is passed **only to the exclusive provider**, and lets it set `status`, `emptyMessage`, `loadingMessage`, or `loadingBadge` on the list. A `status` is `{type, message, duration}` — `type` being `info`, `warning` or `error` — and it covers the list's resting info line rather than replacing it. Use it to explain an empty result — "query must be at least 3 characters" — rather than leaving the user with a blank panel.
 
 ## Teardown
 

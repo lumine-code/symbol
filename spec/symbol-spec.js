@@ -948,12 +948,12 @@ describe("symbol", () => {
 
           symbolsView.element.querySelector("li:first-child").click();
 
-          await conditionPromise(() => symbolsView.selectListView.refs.errorMessage);
+          await conditionPromise(() => symbolsView.selectListView.refs.statusMessage);
 
           expect(lumine.workspace.open).not.toHaveBeenCalled();
-          expect(symbolsView.selectListView.refs.errorMessage.textContent.length).toBeGreaterThan(
-            0,
-          );
+          const status = symbolsView.selectListView.refs.statusMessage;
+          expect(status.textContent.length).toBeGreaterThan(0);
+          expect(status.classList.contains("text-error")).toBe(true);
         });
       });
     });

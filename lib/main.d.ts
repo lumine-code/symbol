@@ -13,7 +13,7 @@ type MaybePromise<T> = T | Promise<T>;
 // could set an `emptyMessage` of “Query must be at least X characters long” to
 // explain why no results are present at first.
 type ListControllerParams = Partial<{
-  errorMessage: string;
+  status: { type?: "info" | "warning" | "error"; message: string; duration?: number } | null;
   emptyMessage: string;
   loadingMessage: string;
   loadingBadge: string;
