@@ -74,7 +74,7 @@ interface SymbolRegistry {
 }
 ```
 
-`FileSymbol` and `ProjectSymbol` are the shapes of [symbol.provider](symbol.provider.md), after the hub's normalization: every symbol carries a `position` (derived from `range` when the provider gave only that), `providerName`, and `providerId`, and file results arrive sorted by position.
+`FileSymbol` and `ProjectSymbol` are the shapes of [symbol.provider](symbol.provider.md), after the hub's normalization: every symbol carries a `position` that is a real `Point` (derived from `range` when the provider gave only that, and converted from any Point-compatible spelling otherwise), `providerName`, and `providerId`, and file results arrive sorted by position.
 
 ## Minimal example
 

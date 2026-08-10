@@ -31,11 +31,19 @@ type ListController = {
   clear(...propNames: ListControllerParamName[]): void;
 };
 
+// Any spelling `Point.fromObject` accepts. Positions and ranges cross the
+// service boundary in any compatible spelling, so a provider never has to
+// share the editor's `Point` class; the registry converts to instances.
+type PointCompatible = Point | [number, number] | { row: number; column: number };
+type RangeCompatible =
+  | LumineRange
+  | [PointCompatible, PointCompatible]
+  | { start: PointCompatible; end: PointCompatible };
+
 export type SymbolPosition = {
-  // An instance of `Point` describing the symbol's location. The `column`
-  // value of the point may be ignored, depending on the user's settings. At
-  // least one of `position` and `range` must exist.
-  position: Point;
+  // The symbol's location. The `column` value may be ignored, depending on
+  // the user's settings. At least one of `position` and `range` must exist.
+  position: PointCompatible;
 };
 
 export type SymbolRange = {
@@ -43,7 +51,7 @@ export type SymbolRange = {
   // be used to highlight the token when selected by the user, though that
   // depends on the user's settings. At least one of `position` and `range`
   // must exist.
-  range: LumineRange;
+  range: RangeCompatible;
 };
 
 export type SymbolDirectoryAndFile = {

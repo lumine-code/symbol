@@ -288,6 +288,33 @@ describe("symbol registry", () => {
     expect(symbols[0].providerId).toBe("symbol-provider-stub");
   });
 
+  it("accepts Point/Range-compatible spellings and normalizes to instances", async () => {
+    let warnings = spyOn(console, "warn");
+    registry.addProviders(
+      makeProvider({
+        getSymbols: () => [
+          // The spellings a provider that does not share this window's
+          // `Point` class sends — ide-client's contract uses arrays.
+          { name: "array", position: [2, 4] },
+          { name: "object", position: { row: 1, column: 0 } },
+          { name: "array-range", range: [[3, 0], [3, 5]] },
+          // Still rejected: no name, no location, garbage location.
+          { position: [0, 0] },
+          { name: "nowhere" },
+          { name: "garbage", position: { line: 5 } },
+        ],
+      }),
+    );
+
+    let symbols = await registry.getFileSymbols(editor);
+    expect(symbols.map((s) => s.name)).toEqual(["object", "array", "array-range"]);
+    for (let symbol of symbols) expect(symbol.position instanceof Point).toBe(true);
+    expect(symbols[1].position.isEqual(new Point(2, 4))).toBe(true);
+    expect(symbols[2].range instanceof Range).toBe(true);
+    expect(symbols[2].position.isEqual(new Point(3, 0))).toBe(true);
+    expect(warnings).toHaveBeenCalledTimes(3);
+  });
+
   it("stops listening to a removed provider's cache-clear events", async () => {
     let emitter = new Emitter();
     let provider = makeProvider({
