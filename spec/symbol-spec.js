@@ -19,7 +19,6 @@ const CompetingExclusiveProvider = require("./fixtures/providers/competing-exclu
 const AbortHonoringProvider = require("./fixtures/providers/abort-honoring-provider.js");
 const LateProvider = require("./fixtures/providers/late-provider.js");
 
-const { it, beforeEach, afterEach, conditionPromise } = require("./async-spec-helpers");
 
 async function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -158,7 +157,7 @@ describe("symbol", () => {
       lumine.config.set("symbol.prefillSelectedText", true);
       registerProvider(DummyProvider);
       await activationPromise;
-      spyOn(editor, "getSelectedText").andReturn("Symbol on Row 13");
+      spyOn(editor, "getSelectedText").and.returnValue("Symbol on Row 13");
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
 
@@ -186,7 +185,7 @@ describe("symbol", () => {
       lumine.config.set("symbol.prefillSelectedText", false);
       registerProvider(DummyProvider);
       await activationPromise;
-      spyOn(editor, "getSelectedText").andReturn("Symbol on Row 13");
+      spyOn(editor, "getSelectedText").and.returnValue("Symbol on Row 13");
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
 
@@ -246,7 +245,7 @@ describe("symbol", () => {
       // provider failing us, and saying otherwise blames it for our own budget.
       registerProvider(DummyProvider, AbortHonoringProvider);
       await activationPromise;
-      spyOn(console, "error").andCallThrough();
+      spyOn(console, "error").and.callThrough();
 
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
@@ -311,7 +310,7 @@ describe("symbol", () => {
       expect(mainModule.registry.broker.providers.length).toBe(1);
       lumine.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
-      spyOn(symbolsView.selectListView, "update").andCallThrough();
+      spyOn(symbolsView.selectListView, "update").and.callThrough();
       await conditionPromise(async () => {
         await getOrScheduleUpdatePromise();
         let count = symbolsView.element.querySelectorAll("li").length;
@@ -331,7 +330,7 @@ describe("symbol", () => {
       symbolsView = lumine.workspace.getModalPanels()[0].item;
       await symbolsView.cancel();
 
-      spyOn(DummyProvider, "getSymbols").andCallThrough();
+      spyOn(DummyProvider, "getSymbols").and.callThrough();
 
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       expect(choiceCount(symbolsView)).toBe(5);
@@ -358,8 +357,8 @@ describe("symbol", () => {
       await symbolsView.cancel();
       await wait(100);
 
-      spyOn(DummyProvider, "getSymbols").andCallThrough();
-      spyOn(CacheClearingProvider, "getSymbols").andCallThrough();
+      spyOn(DummyProvider, "getSymbols").and.callThrough();
+      spyOn(CacheClearingProvider, "getSymbols").and.callThrough();
 
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       expect(choiceCount(symbolsView)).toBe(6);
@@ -417,8 +416,8 @@ describe("symbol", () => {
       describe("and none have priority in the user's settings", () => {
         it("prefers the one with the highest score", async () => {
           registerProvider(DummyProvider, CompetingExclusiveProvider);
-          spyOn(CompetingExclusiveProvider, "getSymbols").andCallThrough();
-          spyOn(DummyProvider, "getSymbols").andCallThrough();
+          spyOn(CompetingExclusiveProvider, "getSymbols").and.callThrough();
+          spyOn(DummyProvider, "getSymbols").and.callThrough();
           await activationPromise;
           await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
           symbolsView = getSymbolsView();
@@ -437,8 +436,8 @@ describe("symbol", () => {
 
         it("prefers the one with the highest score (providers listed beating those not listed)", async () => {
           registerProvider(DummyProvider, CompetingExclusiveProvider);
-          spyOn(CompetingExclusiveProvider, "getSymbols").andCallThrough();
-          spyOn(DummyProvider, "getSymbols").andCallThrough();
+          spyOn(CompetingExclusiveProvider, "getSymbols").and.callThrough();
+          spyOn(DummyProvider, "getSymbols").and.callThrough();
           await activationPromise;
           await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
           symbolsView = getSymbolsView();
@@ -460,8 +459,8 @@ describe("symbol", () => {
 
         it("prefers the one with the highest score (providers listed earlier beating those listed later)", async () => {
           registerProvider(DummyProvider, CompetingExclusiveProvider);
-          spyOn(CompetingExclusiveProvider, "getSymbols").andCallThrough();
-          spyOn(DummyProvider, "getSymbols").andCallThrough();
+          spyOn(CompetingExclusiveProvider, "getSymbols").and.callThrough();
+          spyOn(DummyProvider, "getSymbols").and.callThrough();
           await activationPromise;
           await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
           symbolsView = getSymbolsView();
@@ -486,8 +485,8 @@ describe("symbol", () => {
 
         it("prefers the one with the highest score (providers listed earlier beating those listed later)", async () => {
           registerProvider(DummyProvider, CompetingExclusiveProvider);
-          spyOn(CompetingExclusiveProvider, "getSymbols").andCallThrough();
-          spyOn(DummyProvider, "getSymbols").andCallThrough();
+          spyOn(CompetingExclusiveProvider, "getSymbols").and.callThrough();
+          spyOn(DummyProvider, "getSymbols").and.callThrough();
           await activationPromise;
           await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
           symbolsView = getSymbolsView();
@@ -613,12 +612,12 @@ describe("symbol", () => {
 
       it("moves the cursor to the declaration", async () => {
         editor.setCursorBufferPosition([6, 24]);
-        spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
+        spyOn(SymbolListView.prototype, "moveToPosition").and.callThrough();
 
         lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
 
         await conditionPromise(() => {
-          return SymbolListView.prototype.moveToPosition.callCount === 1;
+          return SymbolListView.prototype.moveToPosition.calls.count() === 1;
         });
         expect(editor.getCursorBufferPosition()).toEqual([2, 0]);
       });
@@ -649,11 +648,11 @@ describe("symbol", () => {
 
         expect(choiceCount(symbolsView)).toBe(2);
         expect(symbolsView.element).toBeVisible();
-        spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
+        spyOn(SymbolListView.prototype, "moveToPosition").and.callThrough();
         symbolsView.selectListView.confirmSelection();
 
         await conditionPromise(() => {
-          return SymbolListView.prototype.moveToPosition.callCount === 1;
+          return SymbolListView.prototype.moveToPosition.calls.count() === 1;
         });
 
         editor = lumine.workspace.getActiveTextEditor();
@@ -686,11 +685,11 @@ describe("symbol", () => {
       it("returns to the previous row and column", async () => {
         editor.setCursorBufferPosition([6, 24]);
         editor = lumine.workspace.getActiveTextEditor();
-        spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
+        spyOn(SymbolListView.prototype, "moveToPosition").and.callThrough();
         lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
 
         await conditionPromise(() => {
-          return SymbolListView.prototype.moveToPosition.callCount === 1;
+          return SymbolListView.prototype.moveToPosition.calls.count() === 1;
         });
 
         expect(getEditor()).toBe(editor);
@@ -698,7 +697,7 @@ describe("symbol", () => {
         expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
         lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
-        await conditionPromise(() => SymbolListView.prototype.moveToPosition.callCount === 2);
+        await conditionPromise(() => SymbolListView.prototype.moveToPosition.calls.count() === 2);
         expect(getEditor().getCursorBufferPosition()).toEqual([6, 24]);
       });
     });
@@ -721,11 +720,11 @@ describe("symbol", () => {
       it("returns to the previous row and column", async () => {
         editor.setCursorBufferPosition([6, 24]);
         editor = lumine.workspace.getActiveTextEditor();
-        spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
+        spyOn(SymbolListView.prototype, "moveToPosition").and.callThrough();
         lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
 
         await conditionPromise(() => {
-          return SymbolListView.prototype.moveToPosition.callCount === 1;
+          return SymbolListView.prototype.moveToPosition.calls.count() === 1;
         });
 
         expect(getEditor()).not.toBe(editor);
@@ -733,7 +732,7 @@ describe("symbol", () => {
         expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
         lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
-        await conditionPromise(() => SymbolListView.prototype.moveToPosition.callCount === 2);
+        await conditionPromise(() => SymbolListView.prototype.moveToPosition.calls.count() === 2);
 
         expect(getEditor()).toBe(editor);
         expect(getEditor().getCursorBufferPosition()).toEqual([6, 24]);
@@ -742,11 +741,11 @@ describe("symbol", () => {
       it("returns to a different file when the file was already open", async () => {
         editor.setCursorBufferPosition([6, 24]);
         editor = lumine.workspace.getActiveTextEditor();
-        spyOn(SymbolListView.prototype, "moveToPosition").andCallThrough();
+        spyOn(SymbolListView.prototype, "moveToPosition").and.callThrough();
         lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
 
         await conditionPromise(() => {
-          return SymbolListView.prototype.moveToPosition.callCount === 1;
+          return SymbolListView.prototype.moveToPosition.calls.count() === 1;
         });
 
         expect(getEditor()).not.toBe(editor);
@@ -757,7 +756,7 @@ describe("symbol", () => {
         expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
         lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
-        await conditionPromise(() => SymbolListView.prototype.moveToPosition.callCount === 2);
+        await conditionPromise(() => SymbolListView.prototype.moveToPosition.calls.count() === 2);
 
         // Make sure this is a different instance of TextEditor for the same
         // path.
@@ -806,7 +805,7 @@ describe("symbol", () => {
       lumine.config.set("symbol.prefillSelectedText", true);
       registerProvider(DummyProvider);
       await activationPromise;
-      spyOn(editor, "getSelectedText").andReturn("Symbol on Row 13");
+      spyOn(editor, "getSelectedText").and.returnValue("Symbol on Row 13");
       await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
       symbolsView = getSymbolsView();
 
@@ -859,7 +858,7 @@ describe("symbol", () => {
       lumine.config.set("symbol.prefillSelectedText", false);
       registerProvider(DummyProvider);
       await activationPromise;
-      spyOn(editor, "getSelectedText").andReturn("Symbol on Row 13");
+      spyOn(editor, "getSelectedText").and.returnValue("Symbol on Row 13");
       await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
       symbolsView = lumine.workspace.getModalPanels()[0].item;
 
@@ -887,14 +886,14 @@ describe("symbol", () => {
 
     it("asks for new symbols when the user starts typing", async () => {
       registerProvider(ProgressiveProjectProvider);
-      spyOn(ProgressiveProjectProvider, "getSymbols").andCallThrough();
+      spyOn(ProgressiveProjectProvider, "getSymbols").and.callThrough();
       await activationPromise;
       lumine.commands.dispatch(getEditorView(), "symbol:toggle-project-symbols");
       symbolsView = lumine.workspace.getModalPanels()[0].item;
       await wait(2000);
 
       expect(symbolsView.element.querySelectorAll("li .primary-line").length).toBe(0);
-      expect(ProgressiveProjectProvider.getSymbols.callCount).toBe(1);
+      expect(ProgressiveProjectProvider.getSymbols.calls.count()).toBe(1);
 
       expect(symbolsView.selectListView.props.emptyMessage).toBe(
         "Query must be at least 3 characters long.",
@@ -909,7 +908,7 @@ describe("symbol", () => {
       expect(symbolsView.element.querySelector("li:first-child .primary-line")).toHaveText(
         "Lorem ipsum",
       );
-      expect(ProgressiveProjectProvider.getSymbols.callCount).toBe(2);
+      expect(ProgressiveProjectProvider.getSymbols.calls.count()).toBe(2);
     });
 
     describe("when there is only one project", () => {
@@ -946,7 +945,7 @@ describe("symbol", () => {
           await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
           symbolsView = getSymbolsView();
 
-          spyOn(lumine.workspace, "open").andCallThrough();
+          spyOn(lumine.workspace, "open").and.callThrough();
 
           symbolsView.element.querySelector("li:first-child").click();
 

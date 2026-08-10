@@ -4,7 +4,6 @@ const temp = require("@lumine-code/temp");
 
 const Registry = require("../lib/registry");
 
-const { it, beforeEach, afterEach, conditionPromise } = require("./async-spec-helpers");
 
 function makeProvider(overrides = {}) {
   return {
@@ -62,7 +61,7 @@ describe("symbol registry", () => {
 
     // The completed run is cached even though nobody is waiting any more.
     expect(registry.peekFileSymbols(editor)).toBe(a);
-    spyOn(provider, "getSymbols").andCallThrough();
+    spyOn(provider, "getSymbols").and.callThrough();
     expect(await registry.getFileSymbols(editor)).toBe(a);
     expect(provider.getSymbols).not.toHaveBeenCalled();
   });
@@ -131,8 +130,8 @@ describe("symbol registry", () => {
     emitter.emit("clear", { editor });
     expect(registry.peekFileSymbols(editor)).toBeNull();
 
-    spyOn(a, "getSymbols").andCallThrough();
-    spyOn(b, "getSymbols").andCallThrough();
+    spyOn(a, "getSymbols").and.callThrough();
+    spyOn(b, "getSymbols").and.callThrough();
     let second = await registry.getFileSymbols(editor);
     expect(a.getSymbols).toHaveBeenCalled();
     expect(b.getSymbols).not.toHaveBeenCalled();
@@ -158,8 +157,8 @@ describe("symbol registry", () => {
     registry.addProviders(b);
     expect(registry.peekFileSymbols(editor)).toBeNull();
 
-    spyOn(a, "getSymbols").andCallThrough();
-    spyOn(b, "getSymbols").andCallThrough();
+    spyOn(a, "getSymbols").and.callThrough();
+    spyOn(b, "getSymbols").and.callThrough();
     let symbols = await registry.getFileSymbols(editor);
     expect(a.getSymbols).not.toHaveBeenCalled();
     expect(b.getSymbols).toHaveBeenCalled();
