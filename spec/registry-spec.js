@@ -297,7 +297,13 @@ describe("symbol registry", () => {
           // `Point` class sends — ide-client's contract uses arrays.
           { name: "array", position: [2, 4] },
           { name: "object", position: { row: 1, column: 0 } },
-          { name: "array-range", range: [[3, 0], [3, 5]] },
+          {
+            name: "array-range",
+            range: [
+              [3, 0],
+              [3, 5],
+            ],
+          },
           // Still rejected: no name, no location, garbage location.
           { position: [0, 0] },
           { name: "nowhere" },
