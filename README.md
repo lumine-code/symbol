@@ -16,7 +16,7 @@ The hub of the symbol domain: it gathers symbols from every `symbol.provider`, c
 
 ## Installation
 
-To install `symbol` search for _symbol_ in the Install pane of the Lumine settings or run `lumine --install lumine-code/symbol`.
+To install `symbol` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/symbol`.
 
 ## Commands
 
@@ -33,9 +33,9 @@ Commands available in `lumine-text-editor:not([mini])`:
 
 ## Services
 
-- **[symbol.provider](docs/symbol.provider.md)** (`^1.0.0`): consumed to allow external sources to suggest symbols for a given file or project.
-- **[symbol.registry](docs/symbol.registry.md)** (`1.0.0`): provided to serve aggregated, cached symbols to other packages.
-- **hyperclick.provider** (`1.0.0`): provided to let you follow a symbol to its declaration with a click.
+- [`symbol.provider`](docs/symbol.provider.md): consumed to allow external sources to suggest symbols for a given file or project.
+- [`symbol.registry`](docs/symbol.registry.md): provided to serve aggregated, cached symbols to other packages.
+- `hyperclick.provider`: provided to let you follow a symbol to its declaration with a click.
 
 ## Customization
 
