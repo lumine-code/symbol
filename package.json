@@ -117,7 +117,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@lumine-code/etch": "github:lumine-code/etch#df06b3fca2ec49b1d6b76cb8af3e9f5015a2612c",
     "@lumine-code/temp": "github:lumine-code/node-temp#dea2a8044298b52fbeeb0aef257706dd6d671927",
     "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
