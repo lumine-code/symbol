@@ -1,5 +1,4 @@
 const path = require("path");
-const etch = require("@lumine-code/etch");
 const fs = require("@lumine-code/fs-plus");
 const temp = require("@lumine-code/temp");
 const SymbolListView = require("../lib/symbol-list-view");
@@ -23,8 +22,11 @@ async function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// The views here are select-list's, which render on select-list's own copy of
+// etch. This package's copy schedules nothing, so flushing it would wait on an
+// empty queue; wait on the registry both copies are pointed at instead.
 function getOrScheduleUpdatePromise() {
-  return new Promise((resolve) => etch.getScheduler().updateDocument(resolve));
+  return new Promise((resolve) => lumine.views.updateDocument(resolve));
 }
 
 function choiceCount(symbolsView) {
