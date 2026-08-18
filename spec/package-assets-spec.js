@@ -11,21 +11,21 @@ const exists = (rel) => fs.existsSync(path.join(root, rel));
 // `symbol.registry`.
 describe("symbol package assets", () => {
   it("ships the renamed keymap and stylesheet", () => {
-    expect(exists("keymaps/symbol.json")).toBe(true);
-    expect(exists("styles/symbol.css")).toBe(true);
+    expect(exists("keymaps/main.json")).toBe(true);
+    expect(exists("styles/main.css")).toBe(true);
     expect(exists("keymaps/symbols-view.json")).toBe(false);
     expect(exists("styles/symbols-view.css")).toBe(false);
   });
 
   it("uses the symbol: command prefix in the keymap", () => {
-    const keymap = read("keymaps/symbol.json");
+    const keymap = read("keymaps/main.json");
     expect(keymap).toContain("symbol:toggle-file-symbols");
     expect(keymap).toContain("symbol:toggle-project-symbols");
     expect(keymap).not.toContain("symbols-view:");
   });
 
   it("scopes the stylesheet to the renamed class root", () => {
-    const css = read("styles/symbol.css");
+    const css = read("styles/main.css");
     expect(css).toContain("lumine-panel.modal .symbol");
     expect(css).toContain(".symbol-badge-variant-0");
     expect(css).toContain(".symbol-badge-variant-f");
