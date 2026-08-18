@@ -49,13 +49,33 @@ function getSymbolsView() {
   return lumine.workspace.getModalPanels()[0]?.item;
 }
 
+// A toggle empties the list before it repopulates it, but that teardown is an
+// etch update, so it only reaches the DOM on an animation frame. A poll that
+// starts before that frame counts the rows of the *previous* toggle and
+// resolves on them — with this toggle's providers not yet asked for anything.
+// Flushing the document on the way in, and again on every poll, is what makes
+// a rendered row mean that this dispatch rendered it: the wait then cannot
+// outrun the fetch behind it, however hard the host is throttling frames.
 async function dispatchAndWaitForChoices(commandName) {
+  await getOrScheduleUpdatePromise();
   lumine.commands.dispatch(getEditorView(), commandName);
   let symbolsView = lumine.workspace.getModalPanels()[0].item;
-  await conditionPromise(() => {
+  await conditionPromise(async () => {
+    await getOrScheduleUpdatePromise();
     let count = symbolsView.element.querySelectorAll("li").length;
     return count > 0;
-  });
+  }, `choices to render for ${commandName}`);
+}
+
+// A provider that clears its own cached results does so from a timer it starts
+// inside `getSymbols`, so the invalidation lands some time after the list that
+// prompted it has rendered. Wait for the registry to actually be in that state
+// rather than for a duration that guesses at it.
+function waitForProviderInvalidation(registry, editor, provider) {
+  return conditionPromise(
+    () => registry.invalidatedProviders.get(editor)?.has(provider),
+    `${provider.name} to have its cached tags invalidated`,
+  );
 }
 
 function registerProvider(...args) {
@@ -356,7 +376,7 @@ describe("symbol", () => {
       symbolsView = lumine.workspace.getModalPanels()[0].item;
       expect(choiceCount(symbolsView)).toBe(6);
       await symbolsView.cancel();
-      await wait(100);
+      await waitForProviderInvalidation(mainModule.registry, editor, CacheClearingProvider);
 
       spyOn(DummyProvider, "getSymbols").and.callThrough();
       spyOn(CacheClearingProvider, "getSymbols").and.callThrough();
@@ -366,6 +386,10 @@ describe("symbol", () => {
       expect(DummyProvider.getSymbols).not.toHaveBeenCalled();
       expect(CacheClearingProvider.getSymbols).toHaveBeenCalled();
       await symbolsView.cancel();
+      // That toggle asked the provider again, so it has asked for another
+      // invalidation. Let it land before the save: arriving mid-fetch, it
+      // would abort the run the assertions below are about.
+      await waitForProviderInvalidation(mainModule.registry, editor, CacheClearingProvider);
       await editor.save();
 
       expect(mainModule.registry.cache.get(editor)).toBeUndefined();
