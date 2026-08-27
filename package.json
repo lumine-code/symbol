@@ -59,6 +59,7 @@
     "prefillSelectedText": {
       "title": "Prefill Selected Text",
       "description": "When enabled, any text you may have selected in the active editor will be used as the search query in the symbols list.",
+      "scopeResolution": "grammar",
       "type": "boolean",
       "default": true
     },
@@ -71,6 +72,7 @@
     "preferCertainProviders": {
       "title": "Prefer Certain Providers",
       "description": "A comma-separated list of preferred providers. Used to help break ties when more than one provider can contribute symbols. Anything on this list will be preferred over anything not on this list, and earlier items will be preferred over later items. (A provider can be identified by its official name or its package name; run the **Symbol: Show Active Providers** command to see both values.)",
+      "scopeResolution": "grammar",
       "type": "array",
       "items": {
         "type": "string"
