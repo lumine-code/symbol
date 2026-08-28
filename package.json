@@ -120,7 +120,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@lumine-code/temp": "github:lumine-code/node-temp#2a0b2ce5f1c90a8041f6043cfe52d75ceadb364d",
-    "eslint": "^10.8.1",
+    "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-n": "^18.3.0",
     "globals": "^17.11.0",
