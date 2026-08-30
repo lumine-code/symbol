@@ -202,6 +202,20 @@ describe("symbol", () => {
       );
     });
 
+    it("does not use a mini editor's selection as a symbol query", () => {
+      lumine.config.set("symbol.prefillSelectedText", true);
+      const miniEditor = lumine.workspace.buildTextEditor({ mini: true });
+      const miniElement = lumine.views.getView(miniEditor);
+      miniEditor.setText("mini selection");
+      miniEditor.selectAll();
+
+      try {
+        expect(mainModule.getSelectedTextIfEnabled({ target: miniElement })).toBe("");
+      } finally {
+        miniEditor.destroy();
+      }
+    });
+
     it("does not prefill the query field if `prefillSelectedText` is `false`", async () => {
       lumine.config.set("symbol.prefillSelectedText", false);
       registerProvider(DummyProvider);
