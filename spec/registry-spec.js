@@ -82,8 +82,13 @@ describe("symbol registry", () => {
     let treePromise = registry.getFileSymbolTree(editor);
     await conditionPromise(() => resolveSymbols);
     resolveSymbols([
-      { name: "Outer", range: new Range([0, 0], [10, 0]) },
-      { name: "inner", position: new Point(2, 4), range: new Range([2, 0], [4, 0]) },
+      { name: "Outer", tag: "class", range: new Range([0, 0], [10, 0]) },
+      {
+        name: "inner",
+        icon: "icon-book",
+        position: new Point(2, 4),
+        range: new Range([2, 0], [4, 0]),
+      },
     ]);
 
     let [flat, tree] = await Promise.all([flatPromise, treePromise]);
@@ -91,6 +96,8 @@ describe("symbol registry", () => {
     expect(flat.map((symbol) => symbol.name)).toEqual(["Outer", "inner"]);
     expect(tree.map((symbol) => symbol.name)).toEqual(["Outer"]);
     expect(tree[0].children.map((symbol) => symbol.name)).toEqual(["inner"]);
+    expect(tree[0].tag).toBe("class");
+    expect(tree[0].children[0].icon).toBe("icon-book");
     expect(registry.peekFileSymbolTree(editor)).toBe(tree);
   });
 
