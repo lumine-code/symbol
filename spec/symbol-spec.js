@@ -769,10 +769,13 @@ describe("symbol", () => {
         expect(getEditor()).not.toBe(editor);
 
         expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
+        const reopen = spyOn(lumine.workspace, "open").and.callThrough();
         lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
 
         await conditionPromise(() => SymbolListView.prototype.moveToPosition.calls.count() === 2);
 
+        expect(reopen.calls.mostRecent().args[0]).toBe(editor);
+        expect(reopen.calls.mostRecent().args[1]).toEqual({ searchAllPanes: true });
         expect(getEditor()).toBe(editor);
         expect(getEditor().getCursorBufferPosition()).toEqual([6, 24]);
       });
