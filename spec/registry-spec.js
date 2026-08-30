@@ -3,6 +3,7 @@ const { Emitter, Point, Range } = require("lumine");
 const temp = require("@lumine-code/temp");
 
 const Registry = require("../lib/registry");
+const ProviderBroker = require("../lib/provider-broker");
 
 function makeProvider(overrides = {}) {
   return {
@@ -63,6 +64,54 @@ describe("symbol registry", () => {
     spyOn(provider, "getSymbols").and.callThrough();
     expect(await registry.getFileSymbols(editor)).toBe(a);
     expect(provider.getSymbols).not.toHaveBeenCalled();
+  });
+
+  it("shares one provider run between flat and tree requests", async () => {
+    let calls = 0;
+    let resolveSymbols;
+    registry.addProviders(
+      makeProvider({
+        getSymbols() {
+          calls++;
+          return new Promise((resolve) => (resolveSymbols = resolve));
+        },
+      }),
+    );
+
+    let flatPromise = registry.getFileSymbols(editor);
+    let treePromise = registry.getFileSymbolTree(editor);
+    await conditionPromise(() => resolveSymbols);
+    resolveSymbols([
+      { name: "Outer", range: new Range([0, 0], [10, 0]) },
+      { name: "inner", position: new Point(2, 4), range: new Range([2, 0], [4, 0]) },
+    ]);
+
+    let [flat, tree] = await Promise.all([flatPromise, treePromise]);
+    expect(calls).toBe(1);
+    expect(flat.map((symbol) => symbol.name)).toEqual(["Outer", "inner"]);
+    expect(tree.map((symbol) => symbol.name)).toEqual(["Outer"]);
+    expect(tree[0].children.map((symbol) => symbol.name)).toEqual(["inner"]);
+    expect(registry.peekFileSymbolTree(editor)).toBe(tree);
+  });
+
+  it("assembles point-only symbols by context and caches empty results", async () => {
+    let provider = makeProvider({
+      getSymbols: () => [
+        { name: "Outer", position: [0, 0] },
+        { name: "inner", context: "Outer", position: [2, 0] },
+      ],
+    });
+    registry.addProviders(provider);
+
+    let tree = await registry.getFileSymbolTree(editor);
+    expect(tree[0].children[0].name).toBe("inner");
+    expect(tree[0].range.isEmpty()).toBe(true);
+
+    registry.invalidateEditor(editor);
+    provider.getSymbols = jasmine.createSpy("getSymbols").and.returnValue([]);
+    expect(await registry.getFileSymbols(editor)).toEqual([]);
+    expect(await registry.getFileSymbolTree(editor)).toEqual([]);
+    expect(provider.getSymbols).toHaveBeenCalledTimes(1);
   });
 
   it("aborts the in-flight run on invalidation and resolves it null", async () => {
@@ -214,6 +263,7 @@ describe("symbol registry", () => {
     expect(typeof seen.get("exclusive").set).toBe("function");
 
     seen.clear();
+    registry.invalidateEditor(editor);
     let controller = { set: jasmine.createSpy("set"), clear: jasmine.createSpy("clear") };
     await registry.getFileSymbols(editor, { listController: controller });
     expect(seen.get("exclusive")).toBe(controller);
@@ -315,6 +365,7 @@ describe("symbol registry", () => {
     let symbols = await registry.getFileSymbols(editor);
     expect(symbols.map((s) => s.name)).toEqual(["object", "array", "array-range"]);
     for (let symbol of symbols) expect(symbol.position instanceof Point).toBe(true);
+    for (let symbol of symbols) expect(symbol.range instanceof Range).toBe(true);
     expect(symbols[1].position.isEqual(new Point(2, 4))).toBe(true);
     expect(symbols[2].range instanceof Range).toBe(true);
     expect(symbols[2].position.isEqual(new Point(3, 0))).toBe(true);
@@ -341,5 +392,41 @@ describe("symbol registry", () => {
     expect(await registry.getFileSymbols(editor)).toBeNull();
     expect(await registry.searchProject(editor, "que")).toBeNull();
     expect(await registry.findDeclarations(editor)).toBeNull();
+  });
+});
+
+describe("symbol provider broker selection", () => {
+  const editor = { getGrammar: () => ({ scopeName: "text.plain" }) };
+
+  it("keeps provider outcomes aligned when registration changes mid-selection", async () => {
+    const broker = new ProviderBroker();
+    let answer;
+    const first = makeProvider({
+      packageName: "first",
+      canProvideSymbols: () => new Promise((resolve) => (answer = resolve)),
+    });
+    const second = makeProvider({ packageName: "second" });
+    broker.add(first);
+
+    const selection = broker.select({ type: "file", editor });
+    await conditionPromise(() => answer);
+    broker.add(second);
+    answer(true);
+
+    expect(await selection).toEqual([first]);
+    broker.destroy();
+  });
+
+  it("contains a synchronous canProvideSymbols failure", async () => {
+    const broker = new ProviderBroker();
+    const broken = makeProvider({
+      packageName: "broken",
+      canProvideSymbols() {
+        throw new Error("broken provider");
+      },
+    });
+    broker.add(broken);
+    expect(await broker.select({ type: "file", editor })).toEqual([]);
+    broker.destroy();
   });
 });

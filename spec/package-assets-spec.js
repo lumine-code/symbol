@@ -44,7 +44,7 @@ describe("symbol package assets", () => {
 
   it("provides symbol.registry and hyperclick.provider, and consumes symbol.provider", () => {
     const pkg = JSON.parse(read("package.json"));
-    expect(pkg.providedServices["symbol.registry"].versions["1.0.0"]).toBe("provideSymbolRegistry");
+    expect(pkg.providedServices["symbol.registry"].versions["1.1.0"]).toBe("provideSymbolRegistry");
     expect(pkg.providedServices["hyperclick.provider"].versions["1.0.0"]).toBe("provideHyperclick");
     expect(pkg.consumedServices["symbol.provider"].versions["^1.0.0"]).toBe("consumeSymbol");
   });

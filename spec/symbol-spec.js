@@ -309,7 +309,7 @@ describe("symbol", () => {
       await getOrScheduleUpdatePromise();
 
       expect(choiceCount(symbolsView)).toBe(5);
-      expect(mainModule.registry.cache.get(editor).length).toBe(5);
+      expect(mainModule.registry.cache.get(editor).flat.length).toBe(5);
     });
 
     it("skips providers that hang while answering canProvideSymbols", async () => {

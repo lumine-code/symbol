@@ -96,7 +96,7 @@
     "symbol.registry": {
       "description": "The aggregated symbol source: cached per-editor file symbols, project search, and declaration lookup.",
       "versions": {
-        "1.0.0": "provideSymbolRegistry"
+        "1.1.0": "provideSymbolRegistry"
       }
     },
     "hyperclick.provider": {

@@ -11,7 +11,7 @@ The hub of the symbol domain: it gathers symbols from every `symbol.provider`, c
 - **Go to declaration**: navigate to the declaration of the symbol under the cursor.
 - **Return from declaration**: jump back to where you were before following a declaration.
 - **Pluggable providers**: gather symbols from any package that supplies a symbol provider.
-- **Shared registry**: one fetch per editor serves every consumer through the `symbol.registry` service.
+- **Shared registry**: one fetch per editor serves both flat symbol lists and hierarchical trees through the `symbol.registry` service.
 - **Hyperclick support**: follow a symbol to its declaration with a click.
 
 ## Installation

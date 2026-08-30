@@ -109,6 +109,15 @@ export type FileSymbol = (SymbolPosition | SymbolRange) & {
   source?: string;
 };
 
+// The normalized hierarchy served by `symbol.registry`. Registry results
+// always carry real `Point` and `Range` instances, and tree nodes recursively
+// expose their lexical children.
+export type FileSymbolTree = FileSymbol & {
+  position: Point;
+  range: LumineRange;
+  children: FileSymbolTree[];
+};
+
 // A project symbol has the additional requirement of specifying the file in
 // which each symbol is located, via either the `path` property or both
 // `directory` and `file`.
@@ -381,6 +390,16 @@ export interface SymbolRegistry {
   // The cache, read without fetching. Non-null only when the entry is
   // complete (no provider's portion pending re-query).
   peekFileSymbols(editor: TextEditor): FileSymbol[] | null;
+
+  // The same cached provider result assembled into lexical hierarchy. A call
+  // concurrent with `getFileSymbols` shares its in-flight provider run.
+  getFileSymbolTree(
+    editor: TextEditor,
+    options?: RegistryRequestOptions,
+  ): Promise<FileSymbolTree[] | null>;
+
+  // The cached hierarchy, without fetching.
+  peekFileSymbolTree(editor: TextEditor): FileSymbolTree[] | null;
 
   // `editor: null` means every editor (e.g. a config change); `provider:
   // null` means every provider.

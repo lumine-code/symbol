@@ -4,7 +4,7 @@ The symbol hub's aggregated symbol source: cached per-editor file symbols, proje
 
 |             |                                                            |
 | ----------- | ---------------------------------------------------------- |
-| Version     | `1.0.0`                                                    |
+| Version     | `1.1.0`                                                    |
 | Provided by | `provideSymbolRegistry()` returning the registry object    |
 | Consumed by | `consumeSymbolRegistry(registry)` returning a `Disposable` |
 | Owner       | [`symbol`](https://github.com/lumine-code/symbol)          |
@@ -19,7 +19,7 @@ In your `package.json`:
 {
   "consumedServices": {
     "symbol.registry": {
-      "versions": { "^1.0.0": "consumeSymbolRegistry" }
+      "versions": { "^1.1.0": "consumeSymbolRegistry" }
     }
   }
 }
@@ -44,6 +44,14 @@ interface SymbolRegistry {
   // The cache, read without fetching. Non-null only when the entry is
   // complete (no provider's portion pending re-query).
   peekFileSymbols(editor: TextEditor): FileSymbol[] | null;
+
+  // The same cached result assembled into lexical hierarchy. Concurrent flat
+  // and tree calls share one provider run.
+  getFileSymbolTree(
+    editor: TextEditor,
+    options?: { listController? },
+  ): Promise<FileSymbolTree[] | null>;
+  peekFileSymbolTree(editor: TextEditor): FileSymbolTree[] | null;
 
   // editor null = every editor (config change); provider null = every
   // provider. Fires on grammar change, save, path change, buffer reload,
@@ -74,7 +82,7 @@ interface SymbolRegistry {
 }
 ```
 
-`FileSymbol` and `ProjectSymbol` are the shapes of [symbol.provider](symbol.provider.md), after the hub's normalization: every symbol carries a `position` that is a real `Point` (derived from `range` when the provider gave only that, and converted from any Point-compatible spelling otherwise), `providerName`, and `providerId`, and file results arrive sorted by position.
+`FileSymbol` and `ProjectSymbol` are the shapes of [symbol.provider](symbol.provider.md), after the hub's normalization: every symbol carries a `position` that is a real `Point`, a `range` that is a real `Range` (empty for a point-only provider), `providerName`, and `providerId`, and file results arrive sorted by position. `FileSymbolTree` adds a recursive `children` array; structural range containment wins, with `context` as the fallback for point-only providers.
 
 ## Minimal example
 
@@ -100,7 +108,7 @@ module.exports = {
 
 ## Behavior
 
-**One fetch, shared.** Concurrent `getFileSymbols` calls for the same editor join one in-flight run, and a completed run is cached until invalidated — a picker opened right after an outline refresh renders instantly from the same list. The hub does no eager work: fetches happen when a consumer asks, and a consumer refetching on invalidation is what keeps the cache warm for the next one.
+**One fetch, shared.** Concurrent `getFileSymbols` and `getFileSymbolTree` calls for the same editor join one in-flight run, and the completed flat list and tree are cached together until invalidated — a picker opened right after an outline or breadcrumbs refresh renders instantly from the same result. Complete empty results are cached too. The hub does no eager work: fetches happen when a consumer asks, and a consumer refetching on invalidation is what keeps the cache warm for the next one.
 
 **Invalidation aborts and announces.** Anything that makes symbols stale — an edit settling, a save, a grammar change, a provider arriving — aborts that editor's in-flight run (its promise resolves `null`) and fires `onDidInvalidateFileSymbols`. A `null` resolution is not an error: keep what you are showing and let the event drive the next ask. Abandoning a call does **not** abort the shared fetch — the run completes, bounded by the `providerTimeout` setting, and warms the cache.
 
@@ -114,4 +122,4 @@ Dispose every subscription in the `Disposable` you return from `consumeSymbolReg
 
 ## Versioning
 
-`1.0.0` provided, `^1.0.0` consumed. A change that breaks this shape gets a new service name rather than a new major version, and both sides move in the same release.
+`1.1.0` provided, `^1.1.0` consumed for consumers that need the tree methods. A change that breaks this shape gets a new service name rather than a new major version, and both sides move in the same release.
