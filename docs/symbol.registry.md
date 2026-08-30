@@ -108,7 +108,7 @@ module.exports = {
 
 ## Behavior
 
-**One fetch, shared.** Concurrent `getFileSymbols` and `getFileSymbolTree` calls for the same editor join one in-flight run, and the completed flat list and tree are cached together until invalidated — a picker opened right after an outline or breadcrumbs refresh renders instantly from the same result. Complete empty results are cached too. The hub does no eager work: fetches happen when a consumer asks, and a consumer refetching on invalidation is what keeps the cache warm for the next one.
+**One fetch, shared.** Concurrent `getFileSymbols` and `getFileSymbolTree` calls for the same editor join one in-flight run, and the completed flat list is cached until invalidated. The hierarchy is built only when a tree consumer first asks for it, then memoized with that same result — flat consumers never pay its assembly cost, while a picker opened right after an outline or breadcrumbs refresh still renders instantly. Complete empty results and the absence of a capable provider are cached too. The hub does no eager work: fetches happen when a consumer asks, and a consumer refetching on invalidation is what keeps the cache warm for the next one.
 
 **Invalidation aborts and announces.** Anything that makes symbols stale — an edit settling, a save, a grammar change, a provider arriving — aborts that editor's in-flight run (its promise resolves `null`) and fires `onDidInvalidateFileSymbols`. A `null` resolution is not an error: keep what you are showing and let the event drive the next ask. Abandoning a call does **not** abort the shared fetch — the run completes, bounded by the `providerTimeout` setting, and warms the cache.
 

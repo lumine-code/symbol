@@ -394,14 +394,14 @@ export interface SymbolRegistry {
   // complete (no provider's portion pending re-query).
   peekFileSymbols(editor: TextEditor): FileSymbol[] | null;
 
-  // The same cached provider result assembled into lexical hierarchy. A call
-  // concurrent with `getFileSymbols` shares its in-flight provider run.
+  // The same cached provider result assembled lazily into lexical hierarchy.
+  // A call concurrent with `getFileSymbols` shares its in-flight provider run.
   getFileSymbolTree(
     editor: TextEditor,
     options?: RegistryRequestOptions,
   ): Promise<FileSymbolTree[] | null>;
 
-  // The cached hierarchy, without fetching.
+  // The hierarchy, built once from a complete cached result without fetching.
   peekFileSymbolTree(editor: TextEditor): FileSymbolTree[] | null;
 
   // `editor: null` means every editor (e.g. a config change); `provider:
