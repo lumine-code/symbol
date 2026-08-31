@@ -1,6 +1,7 @@
 const path = require("path");
 const fs = require("@lumine-code/fs-plus");
 const temp = require("@lumine-code/temp");
+const { Icon } = require("lumine");
 const SymbolListView = require("../lib/symbol-list-view");
 
 const DummyProvider = require("./fixtures/providers/dummy-provider");
@@ -101,7 +102,7 @@ function registerProvider(...args) {
 }
 
 describe("symbol", () => {
-  let symbolsView, activationPromise, editor, directory, mainModule, languageMode;
+  let symbolsView, activationPromise, editor, directory, mainModule, languageMode, iconRegistration;
 
   beforeEach(async () => {
     jasmine.unspy(Date, "now");
@@ -125,6 +126,7 @@ describe("symbol", () => {
   });
 
   afterEach(async () => {
+    iconRegistration?.dispose();
     await lumine.packages.deactivatePackage("symbol");
   });
 
@@ -617,6 +619,29 @@ describe("symbol", () => {
             .querySelector("li:nth-child(5) .primary-line")
             .classList.contains("no-icon"),
         ).toBe(true);
+      });
+
+      it("routes a provider's explicit icon through the shared name registry", async () => {
+        registerProvider(DummyProvider);
+        await activationPromise;
+        await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
+        symbolsView = getSymbolsView();
+        expect(symbolsView.element.querySelector("li:first-child .icon-package")).toExist();
+
+        iconRegistration = lumine.icons.addProvider(
+          {
+            id: "symbol-spec",
+            handles: ["name"],
+            usesContext: true,
+            iconFor(target) {
+              return target.context === "symbol" && target.name === "package"
+                ? Icon.classes(["icon-flame"])
+                : null;
+            },
+          },
+          { priority: 100 },
+        );
+        expect(symbolsView.element.querySelector("li:first-child .icon-flame")).toExist();
       });
     });
   });

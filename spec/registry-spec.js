@@ -85,7 +85,7 @@ describe("symbol registry", () => {
       { name: "Outer", tag: "class", range: new Range([0, 0], [10, 0]) },
       {
         name: "inner",
-        icon: "icon-book",
+        icon: "book",
         position: new Point(2, 4),
         range: new Range([2, 0], [4, 0]),
       },
@@ -97,7 +97,7 @@ describe("symbol registry", () => {
     expect(tree.map((symbol) => symbol.name)).toEqual(["Outer"]);
     expect(tree[0].children.map((symbol) => symbol.name)).toEqual(["inner"]);
     expect(tree[0].tag).toBe("class");
-    expect(tree[0].children[0].icon).toBe("icon-book");
+    expect(tree[0].children[0].icon).toBe("book");
     expect(registry.peekFileSymbolTree(editor)).toBe(tree);
   });
 

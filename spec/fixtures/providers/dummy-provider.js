@@ -5,10 +5,10 @@ function last (arr) {
 }
 
 const ICONS = [
-  'icon-package',
-  'icon-key',
-  'icon-gear',
-  'icon-tag',
+  'package',
+  'key',
+  'gear',
+  'tag',
   null
 ];
 

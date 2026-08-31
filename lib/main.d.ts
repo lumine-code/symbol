@@ -81,7 +81,7 @@ export type FileSymbol = (SymbolPosition | SymbolRange) & {
   // badge.
   tag?: string;
 
-  // An explicit icon class overriding the icon derived from `tag`.
+  // An explicit semantic icon name overriding the icon derived from `tag`.
   icon?: string;
 
   // A _short_ string of explanatory text. Optional. Can be used for text that

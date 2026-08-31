@@ -10,10 +10,10 @@ async function wait (ms) {
 }
 
 const ICONS = [
-  'icon-package',
-  'icon-key',
-  'icon-gear',
-  'icon-tag',
+  'package',
+  'key',
+  'gear',
+  'tag',
   null
 ];
 
