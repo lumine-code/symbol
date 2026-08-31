@@ -532,6 +532,41 @@ describe("symbol registry", () => {
     expect(registry.broker.select).toHaveBeenCalledTimes(1);
   });
 
+  it("does not cache a provider failure as an empty file", async () => {
+    let fail = true;
+    const provider = makeProvider({
+      getSymbols() {
+        if (fail) throw new Error("server document is not ready");
+        return [{ name: "recovered", position: new Point(2, 0) }];
+      },
+    });
+    registry.addProviders(provider);
+    spyOn(console, "error");
+
+    expect(await registry.getFileSymbols(editor)).toBeNull();
+    expect(registry.peekFileSymbols(editor)).toBeNull();
+    fail = false;
+    expect((await registry.getFileSymbols(editor)).map(({ name }) => name)).toEqual(["recovered"]);
+  });
+
+  it("keeps the last complete file result when a refresh fails", async () => {
+    let fail = false;
+    const provider = makeProvider({
+      getSymbols() {
+        if (fail) return null;
+        return [{ name: "stable", position: new Point(1, 0) }];
+      },
+    });
+    registry.addProviders(provider);
+    const stable = await registry.getFileSymbols(editor);
+    spyOn(console, "error");
+
+    fail = true;
+    registry.invalidateProvider(provider, editor);
+    expect(await registry.getFileSymbols(editor)).toBe(stable);
+    expect(registry.peekFileSymbols(editor)).toBeNull();
+  });
+
   it("derives a position for range-only symbols and sorts file results", async () => {
     registry.addProviders(
       makeProvider({
