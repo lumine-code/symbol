@@ -114,7 +114,7 @@
     }
   },
   "dependencies": {
-    "@lumine-code/fs-plus": "github:lumine-code/fs-plus#d864d8178848421b65132e5992398c84ec4e64df",
+    "@lumine-code/fs-plus": "github:lumine-code/fs-plus#905b14a8ba174e7d1236db25c189efd3e1473d57",
     "murmurhash-js": "^1.0.0"
   },
   "devDependencies": {
