@@ -199,7 +199,7 @@ describe("symbol", () => {
       // so that we can assert that the text in the query field is selected.
       // This allows the user to start typing and replace the prefilled
       // selection if they didn't mean to prefill the query.
-      expect(symbolsView.selectListView.refs.queryEditor.getSelectedText()).toBe(
+      expect(symbolsView.selectListView.getQueryEditor().getSelectedText()).toBe(
         "Symbol on Row 13",
       );
     });
@@ -426,7 +426,7 @@ describe("symbol", () => {
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
 
       symbolsView = getSymbolsView();
-      symbolsView.selectListView.refs.queryEditor.setText("nothing will match this");
+      symbolsView.selectListView.getQueryEditor().setText("nothing will match this");
 
       await conditionPromise(() => symbolsView.selectListView.refs.emptyMessage);
       expect(document.body.contains(symbolsView.element)).toBe(true);
@@ -434,7 +434,7 @@ describe("symbol", () => {
 
       expect(symbolsView.selectListView.refs.emptyMessage.textContent.length).toBeGreaterThan(0);
 
-      symbolsView.selectListView.refs.queryEditor.setText("");
+      symbolsView.selectListView.getQueryEditor().setText("");
       await conditionPromise(() => choiceCount(symbolsView) > 0);
       expect(choiceCount(symbolsView)).toBe(5);
       expect(symbolsView.selectListView.refs.emptyMessage).toBeUndefined();
@@ -1038,7 +1038,7 @@ describe("symbol", () => {
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
 
         symbolsView = getSymbolsView();
-        symbolsView.selectListView.refs.queryEditor.setText("quicksort");
+        symbolsView.selectListView.getQueryEditor().setText("quicksort");
         await getOrScheduleUpdatePromise();
         let resultView = symbolsView.element.querySelector(".selected");
         let matches = resultView.querySelectorAll(".character-match");
@@ -1051,7 +1051,7 @@ describe("symbol", () => {
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
 
-        symbolsView.selectListView.refs.queryEditor.setText("quick");
+        symbolsView.selectListView.getQueryEditor().setText("quick");
         await getOrScheduleUpdatePromise();
 
         let resultView = symbolsView.element.querySelector(".selected");
@@ -1065,7 +1065,7 @@ describe("symbol", () => {
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
 
-        symbolsView.selectListView.refs.queryEditor.setText("quicort");
+        symbolsView.selectListView.getQueryEditor().setText("quicort");
         await getOrScheduleUpdatePromise();
 
         let resultView = symbolsView.element.querySelector(".selected");
