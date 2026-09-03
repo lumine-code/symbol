@@ -31,7 +31,7 @@ function getOrScheduleUpdatePromise() {
 }
 
 function choiceCount(symbolsView) {
-  return symbolsView.element.querySelectorAll("li").length;
+  return symbolsView.getElement().querySelectorAll("li").length;
 }
 
 function getWorkspaceView() {
@@ -47,7 +47,11 @@ function getEditorView() {
 }
 
 function getSymbolsView() {
-  return lumine.workspace.getModalPanels()[0]?.item;
+  const list = lumine.workspace.getModalPanels()[0]?.item;
+  const main = lumine.packages.getActivePackage("symbol")?.mainModule;
+  return [main?.fileView, main?.projectView, main?.goToView].find(
+    (symbolsView) => symbolsView?.selectList === list,
+  );
 }
 
 // A toggle empties the list before it repopulates it, but that teardown is an
@@ -60,11 +64,11 @@ function getSymbolsView() {
 async function dispatchAndWaitForChoices(commandName) {
   await getOrScheduleUpdatePromise();
   lumine.commands.dispatch(getEditorView(), commandName);
-  let symbolsView = lumine.workspace.getModalPanels()[0].item;
+  let symbolsView = getSymbolsView();
   await conditionPromise(async () => {
     await getOrScheduleUpdatePromise();
-    let count = symbolsView.element.querySelectorAll("li").length;
-    return count > 0;
+    let count = symbolsView.getElement().querySelectorAll("li").length;
+    return count > 0 && !symbolsView.selectList.isLoading();
   }, `choices to render for ${commandName}`);
 }
 
@@ -145,32 +149,34 @@ describe("symbol", () => {
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
 
-      expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
-      expect(document.body.contains(symbolsView.element)).toBe(true);
-      expect(symbolsView.element.querySelectorAll("li").length).toBe(5);
+      expect(symbolsView.selectList.getLoadingState()).toBeNull();
+      expect(document.body.contains(symbolsView.getElement())).toBe(true);
+      expect(symbolsView.getElement().querySelectorAll("li").length).toBe(5);
 
-      expect(symbolsView.element.querySelector("li:first-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .primary-line")).toHaveText(
         "Symbol on Row 1",
       );
-      expect(symbolsView.element.querySelector("li:first-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .secondary-line")).toHaveText(
         "Line 1",
       );
-      expect(symbolsView.element.querySelector("li:last-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:last-child .primary-line")).toHaveText(
         "Symbol on Row 13",
       );
-      expect(symbolsView.element.querySelector("li:last-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:last-child .secondary-line")).toHaveText(
         "Line 13",
       );
 
       // No icon-related classes should be added when `showIconsInSymbolsView`
       // is false.
       expect(
-        symbolsView.element
+        symbolsView
+          .getElement()
           .querySelector("li:first-child .primary-line")
           .classList.contains("icon"),
       ).toBe(false);
       expect(
-        symbolsView.element
+        symbolsView
+          .getElement()
           .querySelector("li:first-child .primary-line")
           .classList.contains("no-icon"),
       ).toBe(false);
@@ -184,24 +190,22 @@ describe("symbol", () => {
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
 
-      expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
-      expect(document.body.contains(symbolsView.element)).toBe(true);
-      expect(symbolsView.element.querySelectorAll("li").length).toBe(1);
+      expect(symbolsView.selectList.getLoadingState()).toBeNull();
+      expect(document.body.contains(symbolsView.getElement())).toBe(true);
+      expect(symbolsView.getElement().querySelectorAll("li").length).toBe(1);
 
-      expect(symbolsView.element.querySelector("li:first-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .primary-line")).toHaveText(
         "Symbol on Row 13",
       );
-      expect(symbolsView.element.querySelector("li:first-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .secondary-line")).toHaveText(
         "Line 13",
       );
 
-      // We reach inside of the `SelectListView` instance to its `TextEditor`
-      // so that we can assert that the text in the query field is selected.
+      // The full SelectList model publicly exposes its query TextEditor so we
+      // can assert that the prefilled query is selected.
       // This allows the user to start typing and replace the prefilled
       // selection if they didn't mean to prefill the query.
-      expect(symbolsView.selectListView.getQueryEditor().getSelectedText()).toBe(
-        "Symbol on Row 13",
-      );
+      expect(symbolsView.selectList.getQueryEditor().getSelectedText()).toBe("Symbol on Row 13");
     });
 
     it("does not use a mini editor's selection as a symbol query", () => {
@@ -226,20 +230,20 @@ describe("symbol", () => {
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
 
-      expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
-      expect(document.body.contains(symbolsView.element)).toBe(true);
-      expect(symbolsView.element.querySelectorAll("li").length).toBe(5);
+      expect(symbolsView.selectList.getLoadingState()).toBeNull();
+      expect(document.body.contains(symbolsView.getElement())).toBe(true);
+      expect(symbolsView.getElement().querySelectorAll("li").length).toBe(5);
 
-      expect(symbolsView.element.querySelector("li:first-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .primary-line")).toHaveText(
         "Symbol on Row 1",
       );
-      expect(symbolsView.element.querySelector("li:first-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .secondary-line")).toHaveText(
         "Line 1",
       );
-      expect(symbolsView.element.querySelector("li:last-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:last-child .primary-line")).toHaveText(
         "Symbol on Row 13",
       );
-      expect(symbolsView.element.querySelector("li:last-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:last-child .secondary-line")).toHaveText(
         "Line 13",
       );
     });
@@ -250,27 +254,27 @@ describe("symbol", () => {
       expect(mainModule.registry.broker.providers.length).toBe(2);
       lumine.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
 
-      symbolsView = lumine.workspace.getModalPanels()[0].item;
+      symbolsView = getSymbolsView();
       await conditionPromise(async () => {
         await getOrScheduleUpdatePromise();
-        let count = symbolsView.element.querySelectorAll("li").length;
+        let count = symbolsView.getElement().querySelectorAll("li").length;
         return count > 0;
       });
 
-      expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
-      expect(document.body.contains(symbolsView.element)).toBe(true);
-      expect(symbolsView.element.querySelectorAll("li").length).toBe(5);
+      expect(symbolsView.selectList.getLoadingState()).toBeNull();
+      expect(document.body.contains(symbolsView.getElement())).toBe(true);
+      expect(symbolsView.getElement().querySelectorAll("li").length).toBe(5);
 
-      expect(symbolsView.element.querySelector("li:first-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .primary-line")).toHaveText(
         "Symbol on Row 1",
       );
-      expect(symbolsView.element.querySelector("li:first-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .secondary-line")).toHaveText(
         "Line 1",
       );
-      expect(symbolsView.element.querySelector("li:last-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:last-child .primary-line")).toHaveText(
         "Symbol on Row 13",
       );
-      expect(symbolsView.element.querySelector("li:last-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:last-child .secondary-line")).toHaveText(
         "Line 13",
       );
     });
@@ -347,14 +351,14 @@ describe("symbol", () => {
       expect(mainModule.registry.broker.providers.length).toBe(1);
       lumine.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
-      spyOn(symbolsView.selectListView, "update").and.callThrough();
+      spyOn(symbolsView.selectList, "update").and.callThrough();
       await conditionPromise(async () => {
         await getOrScheduleUpdatePromise();
-        let count = symbolsView.element.querySelectorAll("li").length;
+        let count = symbolsView.getElement().querySelectorAll("li").length;
         return count > 0;
       });
 
-      expect(symbolsView.selectListView.update).toHaveBeenCalledWith({
+      expect(symbolsView.selectList.update).toHaveBeenCalledWith({
         loadingMessage: "Loading…",
       });
     });
@@ -364,7 +368,7 @@ describe("symbol", () => {
       await activationPromise;
       editor = lumine.workspace.getActiveTextEditor();
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-      symbolsView = lumine.workspace.getModalPanels()[0].item;
+      symbolsView = getSymbolsView();
       await symbolsView.cancel();
 
       spyOn(DummyProvider, "getSymbols").and.callThrough();
@@ -377,7 +381,7 @@ describe("symbol", () => {
       await editor.save();
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
 
-      expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
+      expect(symbolsView.selectList.getLoadingState()).toBeNull();
       expect(choiceCount(symbolsView)).toBe(5);
       expect(DummyProvider.getSymbols).toHaveBeenCalled();
       editor.destroy();
@@ -389,7 +393,7 @@ describe("symbol", () => {
       await activationPromise;
       editor = lumine.workspace.getActiveTextEditor();
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-      symbolsView = lumine.workspace.getModalPanels()[0].item;
+      symbolsView = getSymbolsView();
       expect(choiceCount(symbolsView)).toBe(6);
       await symbolsView.cancel();
       await waitForProviderInvalidation(mainModule.registry, editor, CacheClearingProvider);
@@ -412,7 +416,7 @@ describe("symbol", () => {
 
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
 
-      expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
+      expect(symbolsView.selectList.getLoadingState()).toBeNull();
       expect(choiceCount(symbolsView)).toBe(6);
       expect(DummyProvider.getSymbols).toHaveBeenCalled();
       expect(CacheClearingProvider.getSymbols).toHaveBeenCalled();
@@ -426,18 +430,20 @@ describe("symbol", () => {
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
 
       symbolsView = getSymbolsView();
-      symbolsView.selectListView.getQueryEditor().setText("nothing will match this");
+      symbolsView.selectList.getQueryEditor().setText("nothing will match this");
 
-      await conditionPromise(() => symbolsView.selectListView.refs.emptyMessage);
-      expect(document.body.contains(symbolsView.element)).toBe(true);
+      await conditionPromise(() => symbolsView.getElement().querySelector(".empty-message"));
+      expect(document.body.contains(symbolsView.getElement())).toBe(true);
       expect(choiceCount(symbolsView)).toBe(0);
 
-      expect(symbolsView.selectListView.refs.emptyMessage.textContent.length).toBeGreaterThan(0);
+      expect(
+        symbolsView.getElement().querySelector(".empty-message").textContent.length,
+      ).toBeGreaterThan(0);
 
-      symbolsView.selectListView.getQueryEditor().setText("");
+      symbolsView.selectList.getQueryEditor().setText("");
       await conditionPromise(() => choiceCount(symbolsView) > 0);
       expect(choiceCount(symbolsView)).toBe(5);
-      expect(symbolsView.selectListView.refs.emptyMessage).toBeUndefined();
+      expect(symbolsView.getElement().querySelector(".empty-message")).toBeNull();
     });
 
     it("moves the cursor to the selected function", async () => {
@@ -448,7 +454,7 @@ describe("symbol", () => {
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       symbolsView = getSymbolsView();
 
-      symbolsView.element.querySelectorAll("li")[1].click();
+      symbolsView.getElement().querySelectorAll("li")[1].click();
       // It'll move to the first non-whitespace character on the line.
       expect(editor.getCursorBufferPosition()).toEqual([3, 4]);
     });
@@ -543,15 +549,19 @@ describe("symbol", () => {
         registerProvider(EmptyProvider);
         await activationPromise;
         lumine.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
-        await conditionPromise(() => getSymbolsView()?.selectListView.refs.emptyMessage);
+        await conditionPromise(
+          () =>
+            !getSymbolsView()?.selectList.isLoading() &&
+            getSymbolsView()?.getElement().querySelector(".empty-message"),
+        );
         symbolsView = getSymbolsView();
 
-        expect(document.body.contains(symbolsView.element));
+        expect(document.body.contains(symbolsView.getElement()));
         expect(choiceCount(symbolsView)).toBe(0);
-        let refs = symbolsView.selectListView.refs;
-        expect(refs.emptyMessage).toBeVisible();
-        expect(refs.emptyMessage.textContent.length).toBeGreaterThan(0);
-        expect(refs.loadingMessage).not.toBeVisible();
+        const emptyMessage = symbolsView.getElement().querySelector(".empty-message");
+        expect(emptyMessage).toBeVisible();
+        expect(emptyMessage.textContent.length).toBeGreaterThan(0);
+        expect(symbolsView.selectList.getLoadingState()).toBeNull();
       });
     });
 
@@ -563,11 +573,11 @@ describe("symbol", () => {
         lumine.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
 
         await wait(1000);
-        symbolsView = lumine.workspace.getModalPanels()[0].item;
+        symbolsView = getSymbolsView();
 
         // List view should not be visible, nor should it have any options.
-        expect(symbolsView.element.querySelectorAll("li").length).toBe(0);
-        expect(symbolsView.element).not.toBeVisible();
+        expect(symbolsView.getElement().querySelectorAll("li").length).toBe(0);
+        expect(symbolsView.getElement()).not.toBeVisible();
       });
     });
 
@@ -582,40 +592,46 @@ describe("symbol", () => {
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
 
-        expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
-        expect(document.body.contains(symbolsView.element)).toBe(true);
-        expect(symbolsView.element.querySelectorAll("li").length).toBe(5);
+        expect(symbolsView.selectList.getLoadingState()).toBeNull();
+        expect(document.body.contains(symbolsView.getElement())).toBe(true);
+        expect(symbolsView.getElement().querySelectorAll("li").length).toBe(5);
 
         expect(
-          symbolsView.element
+          symbolsView
+            .getElement()
             .querySelector("li:first-child .primary-line")
             .classList.contains("icon-package"),
         ).toBe(true);
         expect(
-          symbolsView.element
+          symbolsView
+            .getElement()
             .querySelector("li:first-child .secondary-line")
             .classList.contains("no-icon"),
         ).toBe(true);
 
         expect(
-          symbolsView.element
+          symbolsView
+            .getElement()
             .querySelector("li:nth-child(2) .primary-line")
             .classList.contains("icon-key"),
         ).toBe(true);
         expect(
-          symbolsView.element
+          symbolsView
+            .getElement()
             .querySelector("li:nth-child(3) .primary-line")
             .classList.contains("icon-gear"),
         ).toBe(true);
         expect(
-          symbolsView.element
+          symbolsView
+            .getElement()
             .querySelector("li:nth-child(4) .primary-line")
             .classList.contains("icon-tag"),
         ).toBe(true);
 
         // Simulate lack of icon on a random element.
         expect(
-          symbolsView.element
+          symbolsView
+            .getElement()
             .querySelector("li:nth-child(5) .primary-line")
             .classList.contains("no-icon"),
         ).toBe(true);
@@ -626,7 +642,7 @@ describe("symbol", () => {
         await activationPromise;
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
-        expect(symbolsView.element.querySelector("li:first-child .icon-package")).toExist();
+        expect(symbolsView.getElement().querySelector("li:first-child .icon-package")).toExist();
 
         iconRegistration = lumine.icons.addProvider(
           {
@@ -641,7 +657,7 @@ describe("symbol", () => {
           },
           { priority: 100 },
         );
-        expect(symbolsView.element.querySelector("li:first-child .icon-flame")).toExist();
+        expect(symbolsView.getElement().querySelector("li:first-child .icon-flame")).toExist();
       });
     });
   });
@@ -707,13 +723,13 @@ describe("symbol", () => {
         symbolsView = getSymbolsView();
 
         await conditionPromise(() => {
-          return symbolsView.element.querySelectorAll("li").length > 0;
+          return symbolsView.getElement().querySelectorAll("li").length > 0;
         });
 
         expect(choiceCount(symbolsView)).toBe(2);
-        expect(symbolsView.element).toBeVisible();
+        expect(symbolsView.getElement()).toBeVisible();
         spyOn(SymbolListView.prototype, "moveToPosition").and.callThrough();
-        symbolsView.selectListView.confirmSelection();
+        symbolsView.selectList.confirmSelection();
 
         await conditionPromise(() => {
           return SymbolListView.prototype.moveToPosition.calls.count() === 1;
@@ -844,26 +860,26 @@ describe("symbol", () => {
       registerProvider(DummyProvider);
       await activationPromise;
       await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
-      symbolsView = lumine.workspace.getModalPanels()[0].item;
+      symbolsView = getSymbolsView();
 
-      expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
-      expect(document.body.contains(symbolsView.element)).toBe(true);
-      expect(symbolsView.element.querySelectorAll("li").length).toBe(5);
+      expect(symbolsView.selectList.getLoadingState()).toBeNull();
+      expect(document.body.contains(symbolsView.getElement())).toBe(true);
+      expect(symbolsView.getElement().querySelectorAll("li").length).toBe(5);
 
       let root = lumine.project.getPaths()[1];
       let resolved = directory.resolve("other-file.js");
       let relative = `${path.basename(root)}${resolved.replace(root, "")}`;
 
-      expect(symbolsView.element.querySelector("li:first-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .primary-line")).toHaveText(
         "Symbol on Row 1",
       );
-      expect(symbolsView.element.querySelector("li:first-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .secondary-line")).toHaveText(
         `${relative}:1`,
       );
-      expect(symbolsView.element.querySelector("li:last-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:last-child .primary-line")).toHaveText(
         "Symbol on Row 13",
       );
-      expect(symbolsView.element.querySelector("li:last-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:last-child .secondary-line")).toHaveText(
         `${relative}:13`,
       );
     });
@@ -876,18 +892,18 @@ describe("symbol", () => {
       await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
       symbolsView = getSymbolsView();
 
-      expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
-      expect(document.body.contains(symbolsView.element)).toBe(true);
-      expect(symbolsView.element.querySelectorAll("li").length).toBe(1);
+      expect(symbolsView.selectList.getLoadingState()).toBeNull();
+      expect(document.body.contains(symbolsView.getElement())).toBe(true);
+      expect(symbolsView.getElement().querySelectorAll("li").length).toBe(1);
 
       let root = lumine.project.getPaths()[1];
       let resolved = directory.resolve("other-file.js");
       let relative = `${path.basename(root)}${resolved.replace(root, "")}`;
 
-      expect(symbolsView.element.querySelector("li:first-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .primary-line")).toHaveText(
         "Symbol on Row 13",
       );
-      expect(symbolsView.element.querySelector("li:first-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .secondary-line")).toHaveText(
         `${relative}:13`,
       );
     });
@@ -897,26 +913,26 @@ describe("symbol", () => {
       registerProvider(SecondDummyProvider);
 
       await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
-      symbolsView = lumine.workspace.getModalPanels()[0].item;
+      symbolsView = getSymbolsView();
 
-      expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
-      expect(document.body.contains(symbolsView.element)).toBe(true);
-      expect(symbolsView.element.querySelectorAll("li").length).toBe(10);
+      expect(symbolsView.selectList.getLoadingState()).toBeNull();
+      expect(document.body.contains(symbolsView.getElement())).toBe(true);
+      expect(symbolsView.getElement().querySelectorAll("li").length).toBe(10);
 
       let root = lumine.project.getPaths()[1];
       let resolved = directory.resolve("other-file.js");
       let relative = `${path.basename(root)}${resolved.replace(root, "")}`;
 
-      expect(symbolsView.element.querySelector("li:first-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .primary-line")).toHaveText(
         "Symbol on Row 1",
       );
-      expect(symbolsView.element.querySelector("li:first-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .secondary-line")).toHaveText(
         `${relative}:1`,
       );
-      expect(symbolsView.element.querySelector("li:last-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:last-child .primary-line")).toHaveText(
         "(Second) Symbol on Row 13",
       );
-      expect(symbolsView.element.querySelector("li:last-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:last-child .secondary-line")).toHaveText(
         `${relative}:13`,
       );
     });
@@ -927,26 +943,26 @@ describe("symbol", () => {
       await activationPromise;
       spyOn(editor, "getSelectedText").and.returnValue("Symbol on Row 13");
       await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
-      symbolsView = lumine.workspace.getModalPanels()[0].item;
+      symbolsView = getSymbolsView();
 
-      expect(symbolsView.selectListView.refs.loadingMessage).toBeUndefined();
-      expect(document.body.contains(symbolsView.element)).toBe(true);
-      expect(symbolsView.element.querySelectorAll("li").length).toBe(5);
+      expect(symbolsView.selectList.getLoadingState()).toBeNull();
+      expect(document.body.contains(symbolsView.getElement())).toBe(true);
+      expect(symbolsView.getElement().querySelectorAll("li").length).toBe(5);
 
       let root = lumine.project.getPaths()[1];
       let resolved = directory.resolve("other-file.js");
       let relative = `${path.basename(root)}${resolved.replace(root, "")}`;
 
-      expect(symbolsView.element.querySelector("li:first-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .primary-line")).toHaveText(
         "Symbol on Row 1",
       );
-      expect(symbolsView.element.querySelector("li:first-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:first-child .secondary-line")).toHaveText(
         `${relative}:1`,
       );
-      expect(symbolsView.element.querySelector("li:last-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:last-child .primary-line")).toHaveText(
         "Symbol on Row 13",
       );
-      expect(symbolsView.element.querySelector("li:last-child .secondary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelector("li:last-child .secondary-line")).toHaveText(
         `${relative}:13`,
       );
     });
@@ -956,23 +972,23 @@ describe("symbol", () => {
       spyOn(ProgressiveProjectProvider, "getSymbols").and.callThrough();
       await activationPromise;
       lumine.commands.dispatch(getEditorView(), "symbol:toggle-project-symbols");
-      symbolsView = lumine.workspace.getModalPanels()[0].item;
+      symbolsView = getSymbolsView();
       await wait(2000);
 
-      expect(symbolsView.element.querySelectorAll("li .primary-line").length).toBe(0);
+      expect(symbolsView.getElement().querySelectorAll("li .primary-line").length).toBe(0);
       expect(ProgressiveProjectProvider.getSymbols.calls.count()).toBe(1);
 
-      expect(symbolsView.selectListView.props.emptyMessage).toBe(
+      expect(symbolsView.getElement().querySelector(".empty-message")).toHaveText(
         "Query must be at least 3 characters long.",
       );
 
       await symbolsView.updateView({ query: "lor" });
       await wait(2000);
 
-      expect(symbolsView.selectListView.props.emptyMessage).toBeNull();
+      expect(symbolsView.getElement().querySelector(".empty-message")).toBeNull();
 
-      expect(symbolsView.element.querySelectorAll("li .primary-line").length).toBe(1);
-      expect(symbolsView.element.querySelector("li:first-child .primary-line")).toHaveText(
+      expect(symbolsView.getElement().querySelectorAll("li .primary-line").length).toBe(1);
+      expect(symbolsView.getElement().querySelector("li:first-child .primary-line")).toHaveText(
         "Lorem ipsum",
       );
       expect(ProgressiveProjectProvider.getSymbols.calls.count()).toBe(2);
@@ -993,10 +1009,10 @@ describe("symbol", () => {
 
         expect(choiceCount(symbolsView)).toBe(1);
 
-        expect(symbolsView.element.querySelector("li:first-child .primary-line")).toHaveText(
+        expect(symbolsView.getElement().querySelector("li:first-child .primary-line")).toHaveText(
           "callMeMaybe",
         );
-        expect(symbolsView.element.querySelector("li:first-child .secondary-line")).toHaveText(
+        expect(symbolsView.getElement().querySelector("li:first-child .secondary-line")).toHaveText(
           "tagged.js:3",
         );
       });
@@ -1014,14 +1030,14 @@ describe("symbol", () => {
 
           spyOn(lumine.workspace, "open").and.callThrough();
 
-          symbolsView.element.querySelector("li:first-child").click();
+          symbolsView.getElement().querySelector("li:first-child").click();
 
-          await conditionPromise(() => symbolsView.selectListView.refs.statusMessage);
+          await conditionPromise(() => symbolsView.selectList.getStatus());
 
           expect(lumine.workspace.open).not.toHaveBeenCalled();
-          const status = symbolsView.selectListView.refs.statusMessage;
-          expect(status.textContent.length).toBeGreaterThan(0);
-          expect(status.classList.contains("text-error")).toBe(true);
+          const status = symbolsView.selectList.getStatus();
+          expect(status.message.length).toBeGreaterThan(0);
+          expect(status.type).toBe("error");
         });
       });
     });
@@ -1038,9 +1054,9 @@ describe("symbol", () => {
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
 
         symbolsView = getSymbolsView();
-        symbolsView.selectListView.getQueryEditor().setText("quicksort");
+        symbolsView.selectList.getQueryEditor().setText("quicksort");
         await getOrScheduleUpdatePromise();
-        let resultView = symbolsView.element.querySelector(".selected");
+        let resultView = symbolsView.getElement().querySelector(".selected");
         let matches = resultView.querySelectorAll(".character-match");
         expect(matches.length).toBe(1);
         expect(matches[0].textContent).toBe("quicksort");
@@ -1051,10 +1067,10 @@ describe("symbol", () => {
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
 
-        symbolsView.selectListView.getQueryEditor().setText("quick");
+        symbolsView.selectList.getQueryEditor().setText("quick");
         await getOrScheduleUpdatePromise();
 
-        let resultView = symbolsView.element.querySelector(".selected");
+        let resultView = symbolsView.getElement().querySelector(".selected");
         let matches = resultView.querySelectorAll(".character-match");
         expect(matches.length).toBe(1);
         expect(matches[0].textContent).toBe("quick");
@@ -1065,10 +1081,10 @@ describe("symbol", () => {
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
 
-        symbolsView.selectListView.getQueryEditor().setText("quicort");
+        symbolsView.selectList.getQueryEditor().setText("quicort");
         await getOrScheduleUpdatePromise();
 
-        let resultView = symbolsView.element.querySelector(".selected");
+        let resultView = symbolsView.getElement().querySelector(".selected");
         let matches = resultView.querySelectorAll(".character-match");
         expect(matches.length).toBe(2);
         expect(matches[0].textContent).toBe("quic");
@@ -1092,7 +1108,7 @@ describe("symbol", () => {
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
 
-        symbolsView.selectListView.selectNext();
+        symbolsView.selectList.selectNext();
 
         expect(editor.getCursorBufferPosition()).toEqual([3, 4]);
       });
@@ -1111,10 +1127,10 @@ describe("symbol", () => {
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
 
-        symbolsView.selectListView.selectNext();
+        symbolsView.selectList.selectNext();
         expect(editor.getCursorBufferPosition()).toEqual([3, 4]);
 
-        await symbolsView.didCancelSelection();
+        symbolsView.selectList.cancel();
         expect(editor.getSelectedBufferRanges()).toEqual(bufferRanges);
       });
     });
@@ -1133,7 +1149,7 @@ describe("symbol", () => {
 
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getSymbolsView();
-        symbolsView.selectListView.selectNext();
+        symbolsView.selectList.selectNext();
         expect(editor.getCursorBufferPosition()).toEqual([0, 0]);
       });
     });
