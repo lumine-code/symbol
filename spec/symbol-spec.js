@@ -23,9 +23,8 @@ async function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// The views here are select-list's, which render on select-list's own copy of
-// etch. This package's copy schedules nothing, so flushing it would wait on an
-// empty queue; wait on the registry both copies are pointed at instead.
+// Wait on the editor's document update registry so every scheduled list render
+// has reached the DOM before an assertion counts its rows.
 function getOrScheduleUpdatePromise() {
   return new Promise((resolve) => lumine.views.updateDocument(resolve));
 }
@@ -153,9 +152,14 @@ describe("symbol", () => {
       expect(document.body.contains(symbolsView.getElement())).toBe(true);
       expect(symbolsView.getElement().querySelectorAll("li").length).toBe(5);
 
-      expect(symbolsView.getElement().querySelector("li:first-child .primary-line")).toHaveText(
-        "Symbol on Row 1",
-      );
+      const panelElement = symbolsView.selectListHost.getPanel().getElement();
+      const firstPrimaryLine = symbolsView
+        .getElement()
+        .querySelector("li:first-child .primary-line");
+      expect(panelElement.matches("lumine-panel.modal.symbol")).toBe(true);
+      expect(getComputedStyle(firstPrimaryLine).display).toBe("flex");
+
+      expect(firstPrimaryLine).toHaveText("Symbol on Row 1");
       expect(symbolsView.getElement().querySelector("li:first-child .secondary-line")).toHaveText(
         "Line 1",
       );
@@ -1130,7 +1134,7 @@ describe("symbol", () => {
         symbolsView.selectList.selectNext();
         expect(editor.getCursorBufferPosition()).toEqual([3, 4]);
 
-        symbolsView.selectList.cancel();
+        symbolsView.selectListHost.cancel();
         expect(editor.getSelectedBufferRanges()).toEqual(bufferRanges);
       });
     });
