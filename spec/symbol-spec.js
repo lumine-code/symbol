@@ -2,7 +2,7 @@ const path = require("path");
 const fs = require("@lumine-code/fs-plus");
 const temp = require("@lumine-code/temp");
 const { Icon } = require("lumine");
-const SymbolListView = require("../lib/symbol-list-view");
+let SymbolListView;
 
 const DummyProvider = require("./fixtures/providers/dummy-provider");
 const SecondDummyProvider = require("./fixtures/providers/second-dummy-provider");
@@ -96,7 +96,7 @@ function registerProvider(...args) {
     // If we let the package lazy-activate the first time a command is invoked,
     // we lose an opportunity to add mock providers. So we should activate it
     // manually.
-    lumine.packages.getLoadedPackage("symbol").activateNow();
+    lumine.packages.activatePackage("symbol").catch((error) => fail(error));
   } else {
     for (let provider of args) {
       main.consumeSymbol(provider);
@@ -123,6 +123,7 @@ describe("symbol", () => {
     activationPromise = lumine.packages.activatePackage("symbol");
     await activationPromise.then(() => {
       mainModule = lumine.packages.getActivePackage("symbol").mainModule;
+      SymbolListView = require("../lib/symbol-list-view");
     });
     await lumine.packages.activatePackage("language-javascript");
     jasmine.attachToDOM(getWorkspaceView());
