@@ -39,13 +39,18 @@ describe("symbol package assets", () => {
     expect(pkg.repository).toBe("https://github.com/lumine-code/symbol");
     expect(pkg.bugs.url).toBe("https://github.com/lumine-code/symbol/issues");
     expect(pkg.main).toBe("./lib/main");
-    expect(pkg.backgroundTips.join("")).toContain("symbol:toggle-file-symbols");
+    const contribution = require("../lib/main").provideBackgroundTips();
+    expect(contribution.packageName).toBe("symbol");
+    expect(contribution.tips.join("")).toContain("symbol:toggle-file-symbols");
   });
 
   it("provides symbol.registry and hyperclick.provider, and consumes symbol.provider", () => {
     const pkg = JSON.parse(read("package.json"));
     expect(pkg.providedServices["symbol.registry"].versions["1.1.0"]).toBe("provideSymbolRegistry");
     expect(pkg.providedServices["hyperclick.provider"].versions["1.0.0"]).toBe("provideHyperclick");
+    expect(pkg.providedServices["background-tips.provider"].versions["1.0.0"]).toBe(
+      "provideBackgroundTips",
+    );
     expect(pkg.consumedServices["symbol.provider"].versions["^1.0.0"]).toBe("consumeSymbol");
   });
 
