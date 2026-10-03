@@ -219,6 +219,84 @@ describe("symbol registry", () => {
     expect(events[0].provider).toBeNull();
   });
 
+  for (const outcome of ["rejects a stale projection", "returns stale symbols"]) {
+    it(`aborts on the first text edit when a provider ${outcome}`, async () => {
+      const buffer = editor.getBuffer();
+      // Drive the idle event explicitly so the response settles while the
+      // buffer is still changing, regardless of the test machine's speed.
+      spyOn(buffer, "debouncedEmitDidStopChangingEvent");
+      spyOn(console, "error");
+      let providerSignal, resolveSymbols, rejectSymbols;
+      const provider = makeProvider({
+        getSymbols({ signal }) {
+          providerSignal = signal;
+          return new Promise((resolve, reject) => {
+            resolveSymbols = resolve;
+            rejectSymbols = reject;
+          });
+        },
+      });
+      registry.addProviders(provider);
+      const events = [];
+      registry.onDidInvalidateFileSymbols((bundle) => events.push(bundle));
+
+      const pending = registry.getFileSymbols(editor);
+      await conditionPromise(() => resolveSymbols);
+      buffer.append("updated");
+
+      expect(providerSignal.aborted).toBe(true);
+      expect(events).toEqual([]);
+      if (outcome === "rejects a stale projection") {
+        rejectSymbols(Object.assign(new Error("projection changed"), { code: "PROJECTION_STALE" }));
+      } else {
+        resolveSymbols([{ name: "stale", position: new Point(0, 0) }]);
+      }
+      expect(await pending).toBeNull();
+      expect(registry.peekFileSymbols(editor)).toBeNull();
+      expect(registry.inflight.has(editor)).toBe(false);
+      expect(console.error).not.toHaveBeenCalled();
+      expect(events).toEqual([]);
+
+      buffer.emitDidStopChangingEvent();
+      expect(events).toEqual([{ editor, provider: null }]);
+      spyOn(provider, "getSymbols").and.callFake(({ editor: currentEditor }) => [
+        { name: currentEditor.getText(), position: new Point(0, 0) },
+      ]);
+      const current = await registry.getFileSymbols(editor);
+      expect(current.map(({ name }) => name)).toEqual(["updated"]);
+      expect(registry.peekFileSymbols(editor)).toBe(current);
+      expect(await registry.getFileSymbols(editor)).toBe(current);
+      expect(provider.getSymbols).toHaveBeenCalledTimes(1);
+    });
+  }
+
+  it("cancels pending provider selection on a text edit before requesting symbols", async () => {
+    const buffer = editor.getBuffer();
+    spyOn(buffer, "debouncedEmitDidStopChangingEvent");
+    let resolveCapability;
+    const provider = makeProvider({
+      canProvideSymbols: () => new Promise((resolve) => (resolveCapability = resolve)),
+    });
+    spyOn(provider, "getSymbols").and.callThrough();
+    registry.addProviders(provider);
+
+    const pending = registry.getFileSymbols(editor);
+    await conditionPromise(() => resolveCapability);
+    buffer.append("updated");
+    resolveCapability(true);
+
+    expect(await pending).toBeNull();
+    expect(provider.getSymbols).not.toHaveBeenCalled();
+    expect(registry.peekFileSymbols(editor)).toBeNull();
+
+    buffer.emitDidStopChangingEvent();
+    spyOn(provider, "canProvideSymbols").and.returnValue(true);
+    const current = await registry.getFileSymbols(editor);
+    expect(current.map(({ name }) => name)).toEqual(["one"]);
+    expect(registry.peekFileSymbols(editor)).toBe(current);
+    expect(provider.getSymbols).toHaveBeenCalledTimes(1);
+  });
+
   it("invalidates on save through the editor wiring", async () => {
     registry.addProviders(makeProvider());
     await registry.getFileSymbols(editor);
