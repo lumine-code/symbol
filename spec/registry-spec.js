@@ -1,6 +1,6 @@
 const path = require("path");
 const { Emitter, Point, Range } = require("lumine");
-const temp = require("@lumine-code/temp");
+const temp = require("@lumine-code/fs-temp");
 
 const Registry = require("../lib/registry");
 const ProviderBroker = require("../lib/provider-broker");
