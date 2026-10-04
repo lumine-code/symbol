@@ -1,6 +1,7 @@
 {
   "lumine-text-editor:not([mini])": {
-    "cmdorctrl-r": "symbol:toggle-file-symbols"
+    "cmdorctrl-r": "symbol:toggle-file-symbols",
+    "ctrl-alt-d": "symbol:go-to-declaration"
   },
   // `lumine-workspace` rather than `body`, which is the fleet's one spelling for
   // global scope. cmdorctrl-shift-r is a cross-editor convention and stays out
