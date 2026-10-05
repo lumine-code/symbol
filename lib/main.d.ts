@@ -43,6 +43,8 @@ export interface DocumentSymbolSource {
   shortLabel: string;
   score: number;
   state: "ready" | "starting" | "unavailable";
+  /** Local extraction is cancelled by document lifecycle, without a remote-response deadline. Defaults to remote. */
+  execution?: "local" | "remote";
   message?: string;
 }
 export type DocumentSourceDescriptor = DocumentSymbolSource & { packageName: string };

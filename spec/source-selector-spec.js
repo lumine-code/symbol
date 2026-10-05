@@ -927,4 +927,77 @@ describe("document symbol source selector integration", () => {
     expect(document.querySelector(".symbol-source-status").textContent).toBe("TS");
     expect(lumine.workspace.getActiveTextEditor()).toBe(editor);
   });
+
+  for (const failure of ["reject", "timeout"]) {
+    it(`keeps slow local Tree-sitter symbols pending after a remote source ${failure}`, async () => {
+      const remoteBudget = 25;
+      lumine.config.set("symbol.providerTimeout", remoteBudget);
+      await service.getFileSymbols(editor);
+      const stopped = new Promise((resolve) => {
+        const subscription = editor.getBuffer().onDidStopChanging(() => {
+          subscription.dispose();
+          resolve();
+        });
+      });
+      editor.setText("function SlowFallbackSymbols() {}\n");
+      await stopped;
+      await service.getFileSymbols(editor);
+
+      const sources = await service.listDocumentSources(editor);
+      expect(sources.find((source) => source.id === "symbol-tree-sitter").execution).toBe("local");
+      const getCaptures = editor.getGrammarQueryCaptureGroups.bind(editor);
+      let release, started;
+      const captureStarted = new Promise((resolve) => (started = resolve));
+      const captureHold = new Promise((resolve) => (release = resolve));
+      spyOn(editor, "getGrammarQueryCaptureGroups").and.callFake(async (query, options) => {
+        started(options);
+        await captureHold;
+        return getCaptures(query, options);
+      });
+      spyOn(console, "error");
+      languageProvider.getDocumentSymbols.calls.reset();
+      languageProvider.getDocumentSymbols.and.callFake(() =>
+        failure === "reject"
+          ? Promise.reject(new Error("Remote language server failed"))
+          : new Promise(() => {}),
+      );
+
+      // Re-register the public service edge to invalidate the preceding
+      // successful empty answer without reaching into the registry cache.
+      providerEdge.dispose();
+      providerEdge = main.consumeDocumentSymbolProvider(languageProvider);
+      const flatRequest = service.getFileSymbols(editor);
+      const treeRequest = service.getFileSymbolTree(editor);
+      try {
+        const options = await captureStarted;
+        await new Promise((resolve) => setTimeout(resolve, remoteBudget * 3));
+        await render();
+        const state = service.getDocumentSourceState(editor);
+        expect(state.status).toBe("loading");
+        expect(state.source.id).toBe("symbol-tree-sitter");
+        expect(options.signal.aborted).toBe(false);
+        const tile = document.querySelector(".symbol-source-status");
+        expect(tile.style.display).toBe("");
+        expect(tile.textContent).toBe("TS");
+        expect(tile.querySelector("button").getAttribute("aria-label")).toBe(
+          "This file uses Tree-sitter symbols.",
+        );
+        if (failure === "timeout") {
+          expect(languageProvider.getDocumentSymbols.calls.first().args[1].signal.aborted).toBe(
+            true,
+          );
+        }
+      } finally {
+        release();
+      }
+      const [flat, tree] = await Promise.all([flatRequest, treeRequest]);
+      await readySource("symbol-tree-sitter");
+      expect(flat?.map((symbol) => symbol.name)).toContain("SlowFallbackSymbols");
+      expect(tree?.some((symbol) => symbol.name === "SlowFallbackSymbols")).toBe(true);
+      expect(flat?.every((symbol) => symbol.providerId === "symbol-tree-sitter")).toBe(true);
+      expect(service.peekFileSymbols(editor)).toBe(flat);
+      expect(document.querySelector(".symbol-source-status").textContent).toBe("TS");
+      expect(editor.getGrammarQueryCaptureGroups).toHaveBeenCalledTimes(1);
+    });
+  }
 });

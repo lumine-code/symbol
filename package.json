@@ -94,8 +94,9 @@
     },
     "providerTimeout": {
       "title": "Provider Timeout",
-      "description": "How long providers have to respond to symbol requests before this package gives up and shows the list. If a certain provider is particularly slow, you may have to increase this value. (Does not apply to project-wide symbol search **if** the list is already visible.)",
+      "description": "Maximum response time for remote symbol sources. Local document extraction can finish while remaining cancellable by edits and source changes.",
       "type": "number",
+      "minimum": 1,
       "default": 2000
     },
     "enableDebugLogging": {

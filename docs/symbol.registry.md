@@ -62,7 +62,7 @@ interface SymbolRegistry {
 }
 ```
 
-Every normalized symbol has a real `Point` position, a real `Range`, `providerName` and `providerId`. For document symbols, these identify the full source name and stable source ID, including a particular language backend. A tree node adds `children`. Structural range containment determines hierarchy; `context` supplies the parent for point-only symbols. Provider descriptors contain `name`, `packageName` and `role` (`document`, `workspace` or `definition`). Document source descriptors additionally contain `id`, `shortLabel`, `score`, availability `state` and optional `message`. Full types are in `lib/main.d.ts`.
+Every normalized symbol has a real `Point` position, a real `Range`, `providerName` and `providerId`. For document symbols, these identify the full source name and stable source ID, including a particular language backend. A tree node adds `children`. Structural range containment determines hierarchy; `context` supplies the parent for point-only symbols. Provider descriptors contain `name`, `packageName` and `role` (`document`, `workspace` or `definition`). Document source descriptors additionally contain `id`, `shortLabel`, `score`, availability `state`, `execution` (`local` or `remote`) and optional `message`. Full types are in `lib/main.d.ts`.
 
 ## Minimal example
 
@@ -81,6 +81,8 @@ consumeSymbolRegistry(registry) {
 ## Behavior
 
 Concurrent document requests share one provider run. Complete results, including empty arrays, are cached until text, grammar, configuration or provider availability changes. Flat and tree results use the same snapshot. A `null` result means unavailable or cancelled. Guard the editor and request generation before applying a result: ignore obsolete responses, and clear previous symbols when the current request has no result. Breadcrumbs retain file-path information. `peek` never starts work.
+
+Remote document sources use the configured response timeout. Local sources can finish large buffers without that deadline and remain cancellable by edits, source changes and teardown. Auto can therefore fall back from a timed-out language server to Tree-sitter without applying the same response deadline to local extraction.
 
 `listDocumentSources` lists metadata without extracting symbols. `getDocumentSourceState` reports `mode` (`auto` or `manual`), choice `scope` (`file` or `grammar`), selected `sourceId` (`null` for Auto), source descriptor and request `status` (`idle`, `loading`, `ready`, `starting`, `unavailable` or `error`). The source descriptor is independent of result count, so a ready empty array still identifies its source. `onDidChangeDocumentSource` receives `{editor, state}`. Unavailable manual sources retain their descriptive name when known.
 

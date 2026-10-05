@@ -169,4 +169,63 @@ describe("document source routing", () => {
     registry.restoreSessionState(saved);
     expect(changed).toHaveBeenCalledTimes(2);
   });
+
+  it("lets a local fallback finish after the remote response deadline", async () => {
+    lumine.config.set("symbol.providerTimeout", 5);
+    syntax.getDocumentSymbolSources = () => [
+      {
+        id: "syntax",
+        name: "syntax",
+        shortLabel: "TS",
+        score: 0.999,
+        state: "ready",
+        execution: "local",
+      },
+    ];
+    semantic.getDocumentSymbols.and.callFake(() => new Promise(() => {}));
+    syntax.getDocumentSymbols.and.callFake((_editor, request) => {
+      expect(request.timeoutMs).toBe(0);
+      return new Promise((resolve) =>
+        setTimeout(() => resolve([{ name: "local", position: [0, 0] }]), 25),
+      );
+    });
+    const found = await registry.getFileSymbols(editor);
+    expect(found.map(({ name }) => name)).toEqual(["local"]);
+    expect(semantic.getDocumentSymbols.calls.first().args[1].signal.aborted).toBe(true);
+    expect(syntax.getDocumentSymbols.calls.first().args[1].signal.aborted).toBe(false);
+    expect(registry.getDocumentSourceState(editor).source.id).toBe("syntax");
+    expect(registry.getDocumentSourceState(editor).status).toBe("ready");
+  });
+
+  it("withdraws a local fallback when the buffer changes while extraction is pending", async () => {
+    lumine.config.set("symbol.providerTimeout", 5);
+    syntax.getDocumentSymbolSources = () => [
+      {
+        id: "syntax",
+        name: "syntax",
+        shortLabel: "TS",
+        score: 0.999,
+        state: "ready",
+        execution: "local",
+      },
+    ];
+    semantic.getDocumentSymbols.and.returnValue(null);
+    let finish, localRequest;
+    syntax.getDocumentSymbols.and.callFake((_editor, request) => {
+      localRequest = request;
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    });
+    const pending = registry.getFileSymbols(editor);
+    await conditionPromise(() => finish);
+    spyOn(editor.getBuffer(), "debouncedEmitDidStopChangingEvent");
+    editor.setText("updated");
+    expect(localRequest.signal.aborted).toBe(true);
+    expect(await pending).toBeNull();
+    finish([{ name: "obsolete", position: [0, 0] }]);
+    await Promise.resolve();
+    expect(registry.peekFileSymbols(editor)).toBeNull();
+    expect(registry.getDocumentSourceState(editor).status).toBe("idle");
+  });
 });
