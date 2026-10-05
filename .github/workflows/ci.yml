@@ -80,6 +80,9 @@ jobs:
       - name: Install package dependencies
         working-directory: symbol
         run: npm ci --ignore-scripts
+      - name: Install declared spec packages
+        working-directory: lumine
+        run: node script/install-spec-packages.js --package ../symbol --home "$RUNNER_TEMP/spec-home" --github-env "$GITHUB_ENV"
       - name: Install editor dependencies
         working-directory: lumine
         run: |

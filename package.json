@@ -24,6 +24,9 @@
     "styles"
   ],
   "types": "./lib/main.d.ts",
+  "specPackages": [
+    "symbol-tree-sitter"
+  ],
   "engines": {
     "lumine": "^1.0.0",
     "node": ">=24"
