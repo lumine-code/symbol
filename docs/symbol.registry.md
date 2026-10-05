@@ -72,7 +72,7 @@ consumeSymbolRegistry(registry) {
 
 ## Behavior
 
-Concurrent document requests share one provider run. Complete results, including empty arrays, are cached until text, grammar, configuration or provider availability changes. Flat and tree results use the same snapshot. A `null` result means unavailable or cancelled; retain the previous presentation or wait for invalidation. `peek` never starts work.
+Concurrent document requests share one provider run. Complete results, including empty arrays, are cached until text, grammar, configuration or provider availability changes. Flat and tree results use the same snapshot. A `null` result means unavailable or cancelled. Guard the editor and request generation before applying a result: ignore obsolete responses, and clear previous symbols when the current request has no result. Breadcrumbs retain file-path information. `peek` never starts work.
 
 Workspace search has no editor argument. It snapshots current project roots, asks every workspace provider and deduplicates navigation destinations. `onSymbols` receives accumulated snapshots. `onStatus` distinguishes successful empty results from unavailable or starting backends, partial failure and errors. Changing project roots or cancelling the request discards stale responses.
 
