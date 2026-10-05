@@ -9,7 +9,7 @@ const documentSymbols = (editor) =>
 module.exports = {
   packageName: "symbol-provider-dummy",
   name: "Dummy",
-  canProvideDocumentSymbols: () => 1,
+  getDocumentSymbolSources() { return [{ id: this.packageName, name: this.name, shortLabel: "SP", score: 1, state: "ready" }]; },
   getDocumentSymbols: documentSymbols,
   searchWorkspaceSymbols(_query, { paths }) {
     return [0, 3, 6, 9, 12].map((row, index) => ({

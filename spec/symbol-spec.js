@@ -134,7 +134,15 @@ describe("symbol", () => {
     const provider = {
       name: "Persistent backend",
       packageName: "persistent-backend",
-      canProvideDocumentSymbols: () => true,
+      getDocumentSymbolSources: () => [
+        {
+          id: "persistent-backend",
+          name: "Persistent backend",
+          shortLabel: "SP",
+          score: 1,
+          state: "ready",
+        },
+      ],
       getDocumentSymbols: () => [],
     };
     const oldRegistration = mainModule.consumeDocumentSymbolProvider(provider);
@@ -335,16 +343,16 @@ describe("symbol", () => {
       expect(mainModule.registry.cache.get(editor).flat.length).toBe(5);
     });
 
-    it("skips providers that hang while answering canProvideDocumentSymbols", async () => {
-      // `VerySlowProvider` answers `canProvideDocumentSymbols` instantly; only its
+    it("skips providers that hang while answering getDocumentSymbolSources", async () => {
+      // `VerySlowProvider` answers `getDocumentSymbolSources` instantly; only its
       // `getDocumentSymbols` is slow. `HangingProvider` never resolves
-      // `canProvideDocumentSymbols`, so the broker must time it out and still return the
+      // `getDocumentSymbolSources`, so the broker must time it out and still return the
       // responsive provider rather than waiting forever.
       registerProvider(VerySlowProvider, HangingProvider);
       await activationPromise;
       expect(mainModule.registry.broker.providers.document.length).toBe(2);
 
-      let selected = await mainModule.registry.broker.select("document", editor);
+      let selected = await mainModule.registry.broker.documentSources(editor);
       let names = selected.map((provider) => provider.name);
 
       expect(names).toContain("Very Slow");

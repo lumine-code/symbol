@@ -35,6 +35,19 @@
     "format:check": "prettier --check ."
   },
   "configSchema": {
+    "showStatusBarItem": {
+      "title": "Show Status Bar Item",
+      "description": "Show the document symbol source beside the grammar selector.",
+      "type": "boolean",
+      "default": true
+    },
+    "documentSource": {
+      "title": "Document Source",
+      "description": "Choose a source ID for this language, or auto for automatic selection. Use Select Document Source to choose from available sources.",
+      "type": "string",
+      "scopeResolution": "grammar",
+      "default": "auto"
+    },
     "quickJumpToFileSymbol": {
       "title": "Quick Jump To File Symbol",
       "description": "Automatically visit selected file-symbols as you navigate the symbols list.",
@@ -108,6 +121,11 @@
     }
   },
   "consumedServices": {
+    "status-bar": {
+      "versions": {
+        "^1.0.0": "consumeStatusBar"
+      }
+    },
     "symbol.document-provider": {
       "versions": {
         "^1.0.0": "consumeDocumentSymbolProvider"

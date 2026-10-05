@@ -6,7 +6,9 @@ const Registry = require("../lib/registry");
 const documentProvider = (name, score, getDocumentSymbols) => ({
   name,
   packageName: name,
-  canProvideDocumentSymbols: () => score,
+  getDocumentSymbolSources: () => [
+    { id: name, name, shortLabel: "SP", score, state: score > 0 ? "ready" : "unavailable" },
+  ],
   getDocumentSymbols: jasmine.createSpy("getDocumentSymbols").and.callFake(getDocumentSymbols),
 });
 const workspaceProvider = (name, searchWorkspaceSymbols) => ({

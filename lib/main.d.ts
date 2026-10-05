@@ -37,10 +37,34 @@ export type RequestStatus = {
 };
 export type SymbolRequest = { signal: AbortSignal; timeoutMs?: number };
 
+export interface DocumentSymbolSource {
+  id: string;
+  name: string;
+  shortLabel: string;
+  score: number;
+  state: "ready" | "starting" | "unavailable";
+  message?: string;
+}
+export type DocumentSourceDescriptor = DocumentSymbolSource & { packageName: string };
+export interface DocumentSourceState {
+  mode: "auto" | "manual";
+  scope: "file" | "grammar";
+  sourceId: string | null;
+  source: DocumentSourceDescriptor | null;
+  status: "idle" | "loading" | "ready" | "starting" | "unavailable" | "error";
+  message?: string;
+}
+
 type ProviderIdentity = { name: string; packageName: string };
 export interface DocumentSymbolProvider extends ProviderIdentity {
-  canProvideDocumentSymbols(editor: TextEditor): MaybePromise<boolean | number>;
-  getDocumentSymbols(editor: TextEditor, request: SymbolRequest): MaybePromise<FileSymbol[] | null>;
+  getDocumentSymbolSources(
+    editor: TextEditor,
+    request: { signal?: AbortSignal },
+  ): MaybePromise<DocumentSymbolSource[]>;
+  getDocumentSymbols(
+    editor: TextEditor,
+    request: SymbolRequest & { sourceId: string },
+  ): MaybePromise<FileSymbol[] | null>;
   onDidInvalidateDocumentSymbols?(
     callback: (event: { editor?: TextEditor | null }) => void,
   ): Disposable;
@@ -67,6 +91,16 @@ export type ProviderDescriptor = ProviderIdentity & {
   role: "document" | "workspace" | "definition";
 };
 export interface SymbolRegistry {
+  listDocumentSources(editor: TextEditor): Promise<DocumentSourceDescriptor[]>;
+  getDocumentSourceState(editor: TextEditor): DocumentSourceState;
+  setDocumentSource(
+    editor: TextEditor,
+    sourceId: string | null,
+    options?: { scope: "file" | "grammar" },
+  ): void;
+  onDidChangeDocumentSource(
+    callback: (event: { editor: TextEditor; state: DocumentSourceState }) => void,
+  ): Disposable;
   getFileSymbols(editor: TextEditor): Promise<NormalizedSymbol[] | null>;
   peekFileSymbols(editor: TextEditor): NormalizedSymbol[] | null;
   getFileSymbolTree(editor: TextEditor): Promise<FileSymbolTree[] | null>;

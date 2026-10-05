@@ -110,3 +110,24 @@ lumine-panel.modal.symbol {
     }
   }
 }
+
+.symbol-source-status .symbol-source-button {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  min-width: 2ch;
+  text-align: center;
+}
+
+.symbol-source-status .symbol-source-button:focus-visible {
+  outline: 1px solid var(--text-color-info);
+  outline-offset: 2px;
+}
+
+.symbol-source-selector .symbol-source-item.unavailable {
+  color: var(--text-color-subtle);
+}

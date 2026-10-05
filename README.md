@@ -7,6 +7,7 @@ The hub of the symbol domain: it gathers symbols from every separate document, w
 ## Features
 
 - **File symbols**: browse and jump to any symbol in the active editor.
+- **Source selection**: choose a document source from the TS or LS status item, keep the choice for one file in the session, or save it for the grammar.
 - **Project symbols**: search symbols supplied by active language backends.
 - **Go to definition**: navigate to the definition of the symbol under the cursor.
 - **Return from definition**: jump back to where you were before following a definition.
@@ -23,6 +24,7 @@ To install `symbol` search for it in the Install pane of the Lumine settings, or
 Commands available in `lumine-workspace`:
 
 - `symbol:toggle-project-symbols`: search symbols from active language backends,
+- `symbol:select-document-source`: choose a source for this file or its grammar,
 - `symbol:show-active-providers`: list the symbol providers currently available.
 
 Commands available in `lumine-text-editor:not([mini])`:
@@ -31,6 +33,15 @@ Commands available in `lumine-text-editor:not([mini])`:
 - `symbol:go-to-definition`: jump to the definition of the symbol under the cursor,
 - `symbol:return-from-definition`: return to the position before the last definition jump.
 
+Commands available in `.symbol-source-selector`:
+
+- `symbol:use-document-source`: use the selected source for this file in the current session,
+- `symbol:use-document-source-for-grammar`: save the selected source for the grammar.
+
+## Usage
+
+The status item beside the grammar selector shows the document source, including a successful empty result. Its tooltip names the source. The selector keeps each source separate; Auto detect tries eligible sources in preference order and falls back after an unavailable, failed or timed-out source. It lists language servers only when they support document symbols, while Tree-sitter remains available even when the grammar has no tags. A manual choice uses exactly that source and reports its failure. File choices are restored with the project's window state, including project switches in the same window, and take precedence over grammar settings; saving a grammar choice removes this file's override while preserving overrides belonging to other files. Outline, breadcrumbs and the file-symbol picker share the selected source and cache.
+
 ## Services
 
 - [`symbol.document-provider`](docs/symbol.document-provider.md): consumed to obtain symbols for the current buffer.
@@ -38,6 +49,8 @@ Commands available in `lumine-text-editor:not([mini])`:
 - [`symbol.definition-provider`](docs/symbol.definition-provider.md): consumed to resolve definitions.
 - [`symbol.registry`](docs/symbol.registry.md): provided to serve aggregated, cached symbols to other packages.
 - `hyperclick.provider`: provided to let you follow a symbol to its definition with a click.
+- `status-bar`: consumed to show the current document source and open its selector.
+- `background-tips.provider`: provided to explain symbol navigation and source selection.
 
 ## Customization
 

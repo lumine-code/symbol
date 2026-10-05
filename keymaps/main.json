@@ -1,4 +1,7 @@
 {
+  ".symbol-source-selector lumine-text-editor[mini]": {
+    "alt-enter": "symbol:use-document-source-for-grammar"
+  },
   "lumine-text-editor:not([mini])": {
     "cmdorctrl-r": "symbol:toggle-file-symbols",
     "ctrl-alt-d": "symbol:go-to-definition"

@@ -3,5 +3,5 @@ module.exports = {
   ...Dummy,
   packageName: "symbol-provider-preferred",
   name: "Preferred",
-  canProvideDocumentSymbols: () => 0.9,
+  getDocumentSymbolSources() { return [{ id: this.packageName, name: this.name, shortLabel: "SP", score: 0.9, state: "ready" }]; },
 };

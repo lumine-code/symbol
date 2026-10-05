@@ -15,17 +15,19 @@ Declare `symbol.document-provider` in `providedServices` at version `1.0.0`. Pub
 
 ## Contract
 
-| Required member                       | Description                                                                                     |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `name`, `packageName`                 | Human-readable provider name and the exact package name.                                        |
-| `canProvideDocumentSymbols(editor)`   | Boolean or numeric availability, optionally asynchronous; do not begin extraction here.         |
-| `getDocumentSymbols(editor, request)` | Complete array of symbols, optionally asynchronous; `request` carries `signal` and `timeoutMs`. |
+| Required member                             | Description                                                                                                          |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `name`, `packageName`                       | Human-readable provider name and the exact package name.                                                             |
+| `getDocumentSymbolSources(editor, request)` | Metadata for sources applicable to this buffer; `request` carries an optional `signal`. Do not extract symbols here. |
+| `getDocumentSymbols(editor, request)`       | Complete array from exactly `request.sourceId`; the request also carries `signal` and `timeoutMs`.                   |
 
 | Optional member                            | Description                                                                                    |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------- |
 | `onDidInvalidateDocumentSymbols(callback)` | Returns a disposable; notify with `{editor}` or `{editor: null}` when every document is stale. |
 
 A symbol requires `name` and `position` or `range`. Positions and ranges accept editor objects, arrays or plain objects. Optional `tag`, `context`, `shortName` and `icon` enrich the presentation. Give structural ranges when available so the registry can construct the hierarchy.
+
+Each source descriptor has a globally unique, stable `id`, a full `name`, a compact `shortLabel`, a finite nonnegative `score` and `state` (`ready`, `starting` or `unavailable`). Optional `message` explains availability. Scores are clamped to one; only ready sources with a positive score can supply symbols. A provider may expose several sources, such as one for each applicable language backend. Keep source IDs independent of display labels, workspace roots and server process generations. A source request must decline an unknown, unsupported or withdrawn ID rather than substitute another source.
 
 ## Minimal example
 
@@ -34,17 +36,21 @@ provideDocumentSymbolProvider() {
   return {
     name: "Example",
     packageName: "example",
-    canProvideDocumentSymbols: editor => editor.getGrammar().scopeName === "source.example",
-    getDocumentSymbols: (editor, { signal }) => signal.aborted ? null : parse(editor.getText()),
+    getDocumentSymbolSources: editor => [{
+      id: "example", name: "Example", shortLabel: "EX", score: 1,
+      state: editor.getGrammar().scopeName === "source.example" ? "ready" : "unavailable",
+    }],
+    getDocumentSymbols: (editor, { sourceId, signal }) =>
+      sourceId === "example" && !signal.aborted ? parse(editor.getText()) : null,
   };
 }
 ```
 
 ## Behavior
 
-The hub chooses one document source. Availability scores are clamped to one; user preferences break ties and can override the default ordering. Each capability check has a 500 ms deadline. A failed, unavailable or timed-out source lets the next eligible source answer. A successful empty array is a valid answer and stops fallback.
+The hub chooses one document source. Auto orders ready sources by score and user preference, with a 500 ms deadline for each metadata listing. A failed, unavailable or timed-out source lets the next eligible source answer. A successful empty array is a valid answer and stops fallback. A manual selection requests only that source; failures remain visible and never trigger a different source. Source selection affects document symbols; workspace search and definition lookup keep their own routing.
 
-The current buffer is authoritative, including unsaved changes. The hub shares in-flight work and caches complete results per editor. Buffer, grammar and provider changes invalidate the result. Return `null` on cancellation; check `signal` after awaits. Each extraction attempt receives its own configured timeout budget.
+The current buffer is authoritative, including unsaved changes. The hub shares in-flight work and caches complete results per editor and source. Switching a source cancels obsolete requests and invalidates every consumer of the selected snapshot while retaining current-version source caches. Buffer, grammar and provider changes invalidate those caches. Return `null` on cancellation; check `signal` after awaits. Each extraction attempt receives its own configured timeout budget.
 
 ## Teardown
 

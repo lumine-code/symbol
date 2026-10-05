@@ -55,6 +55,7 @@ describe("symbol package assets", () => {
     ])
       expect(pkg.consumedServices[`symbol.${role}-provider`].versions["^1.0.0"]).toBe(method);
     expect(Object.keys(pkg.consumedServices)).toEqual([
+      "status-bar",
       "symbol.document-provider",
       "symbol.workspace-provider",
       "symbol.definition-provider",
@@ -65,6 +66,7 @@ describe("symbol package assets", () => {
     const pkg = JSON.parse(read("package.json"));
     const schema = pkg.configSchema;
     expect(Object.keys(schema).sort()).toEqual([
+      "documentSource",
       "enableDebugLogging",
       "preferCertainProviders",
       "prefillSelectedText",
@@ -72,8 +74,10 @@ describe("symbol package assets", () => {
       "quickJumpToFileSymbol",
       "showIcons",
       "showProviderNames",
+      "showStatusBarItem",
       "useBadgeColors",
     ]);
+    expect(schema.showStatusBarItem.default).toBe(true);
     for (const entry of Object.values(schema)) {
       expect(entry.order).toBeUndefined();
       expect(entry.title).toBeDefined();

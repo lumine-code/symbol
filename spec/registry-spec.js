@@ -9,8 +9,20 @@ function makeProvider(overrides = {}) {
   return {
     packageName: "symbol-provider-stub",
     name: "Stub",
-    canProvideDocumentSymbols() {
+    score() {
       return true;
+    },
+    async getDocumentSymbolSources(editor) {
+      const score = Number(await this.score(editor));
+      return [
+        {
+          id: this.packageName,
+          name: this.name,
+          shortLabel: "SP",
+          score,
+          state: score > 0 ? "ready" : "unavailable",
+        },
+      ];
     },
     getDocumentSymbols() {
       return [{ name: "one", position: new Point(0, 0) }];
@@ -274,7 +286,7 @@ describe("symbol registry", () => {
     spyOn(buffer, "debouncedEmitDidStopChangingEvent");
     let resolveCapability;
     const provider = makeProvider({
-      canProvideDocumentSymbols: () => new Promise((resolve) => (resolveCapability = resolve)),
+      score: () => new Promise((resolve) => (resolveCapability = resolve)),
     });
     spyOn(provider, "getDocumentSymbols").and.callThrough();
     registry.addDocumentProviders(provider);
@@ -289,7 +301,7 @@ describe("symbol registry", () => {
     expect(registry.peekFileSymbols(editor)).toBeNull();
 
     buffer.emitDidStopChangingEvent();
-    spyOn(provider, "canProvideDocumentSymbols").and.returnValue(true);
+    spyOn(provider, "score").and.returnValue(true);
     const current = await registry.getFileSymbols(editor);
     expect(current.map(({ name }) => name)).toEqual(["one"]);
     expect(registry.peekFileSymbols(editor)).toBe(current);
@@ -314,13 +326,13 @@ describe("symbol registry", () => {
     let first = makeProvider({
       packageName: "first",
       name: "First",
-      canProvideDocumentSymbols: () => 1,
+      score: () => 1,
       getDocumentSymbols: () => [{ name: "first", position: new Point(0, 0) }],
     });
     let second = makeProvider({
       packageName: "second",
       name: "Second",
-      canProvideDocumentSymbols: () => 0.5,
+      score: () => 0.5,
       getDocumentSymbols: () => [{ name: "second", position: new Point(0, 0) }],
     });
     registry.addDocumentProviders(first, second);
@@ -337,7 +349,7 @@ describe("symbol registry", () => {
     let first = makeProvider({
       packageName: "first",
       name: "First",
-      canProvideDocumentSymbols: () => 0.5,
+      score: () => 0.5,
       getDocumentSymbols: () => [{ name: "first", position: new Point(0, 0) }],
     });
     registry.addDocumentProviders(first);
@@ -346,7 +358,7 @@ describe("symbol registry", () => {
     let second = makeProvider({
       packageName: "second",
       name: "Second",
-      canProvideDocumentSymbols: () => 1,
+      score: () => 1,
       getDocumentSymbols: () => [{ name: "second", position: new Point(0, 0) }],
     });
     registry.addDocumentProviders(second);
@@ -362,14 +374,14 @@ describe("symbol registry", () => {
     let first = makeProvider({
       packageName: "first",
       name: "First",
-      canProvideDocumentSymbols: () => firstScore,
+      score: () => firstScore,
       onDidInvalidateDocumentSymbols: (callback) => emitter.on("clear", callback),
       getDocumentSymbols: () => [{ name: "first", position: new Point(0, 0) }],
     });
     let second = makeProvider({
       packageName: "second",
       name: "Second",
-      canProvideDocumentSymbols: () => 0.5,
+      score: () => 0.5,
       getDocumentSymbols: () => [{ name: "second", position: new Point(0, 0) }],
     });
     registry.addDocumentProviders(first, second);
@@ -500,30 +512,30 @@ describe("symbol provider broker selection", () => {
     let answer;
     const first = makeProvider({
       packageName: "first",
-      canProvideDocumentSymbols: () => new Promise((resolve) => (answer = resolve)),
+      score: () => new Promise((resolve) => (answer = resolve)),
     });
     const second = makeProvider({ packageName: "second" });
     broker.add("document", first);
 
-    const selection = broker.select("document", editor);
+    const selection = broker.documentSources(editor);
     await conditionPromise(() => answer);
     broker.add("document", second);
     answer(true);
 
-    expect(await selection).toEqual([first]);
+    expect((await selection).map((source) => source.provider)).toEqual([first]);
     broker.destroy();
   });
 
-  it("contains a synchronous canProvideDocumentSymbols failure", async () => {
+  it("contains a synchronous score failure", async () => {
     const broker = new ProviderBroker();
     const broken = makeProvider({
       packageName: "broken",
-      canProvideDocumentSymbols() {
+      score() {
         throw new Error("broken provider");
       },
     });
     broker.add("document", broken);
-    expect(await broker.select("document", editor)).toEqual([]);
+    expect(await broker.documentSources(editor)).toEqual([]);
     broker.destroy();
   });
 
