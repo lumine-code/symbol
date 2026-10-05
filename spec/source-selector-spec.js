@@ -310,6 +310,33 @@ describe("document symbol source selector", () => {
     expect(registry.getFileSymbols).not.toHaveBeenCalled();
   });
 
+  it("opens once from the whole tile or its keyboard button and preserves editor focus", async () => {
+    const show = jasmine.createSpy("show");
+    statusView = new SourceStatusView(statusBar, registry, show);
+    await render();
+    statusView.element.click();
+    expect(show).toHaveBeenCalledOnceWith(editor);
+    statusView.button.click();
+    expect(show).toHaveBeenCalledTimes(2);
+    statusView.button.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, button: 0, detail: 0 }),
+    );
+    expect(show).toHaveBeenCalledTimes(3);
+    expect(show.calls.allArgs()).toEqual([[editor], [editor], [editor]]);
+    statusView.element.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 2 }));
+    expect(show).toHaveBeenCalledTimes(3);
+
+    editor.getElement().focus();
+    const mouseDown = new MouseEvent("mousedown", { bubbles: true, button: 0, cancelable: true });
+    statusView.element.dispatchEvent(mouseDown);
+    expect(mouseDown.defaultPrevented).toBe(true);
+    expect(editor.getElement().contains(document.activeElement)).toBe(true);
+    statusView.destroy();
+    statusView.element.click();
+    statusView.button.click();
+    expect(show).toHaveBeenCalledTimes(3);
+  });
+
   it("lists full source names, short badges and selected Auto without extraction", async () => {
     listView = new SourceListView(registry);
     await listView.toggle(editor);
