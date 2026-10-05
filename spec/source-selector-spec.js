@@ -337,7 +337,7 @@ describe("document symbol source selector", () => {
     expect(show).toHaveBeenCalledTimes(3);
   });
 
-  it("lists full source names, short badges and selected Auto without extraction", async () => {
+  it("checks Auto and marks its effective source separately with one keyboard selection", async () => {
     listView = new SourceListView(registry);
     await listView.toggle(editor);
     const items = listView.selectList.getDisplayedItems();
@@ -347,7 +347,16 @@ describe("document symbol source selector", () => {
       "SOFiSTiK Language Server",
     ]);
     const element = listView.selectList.getElement();
-    expect(element.querySelector("li.active").dataset.sourceId).toBe("symbol:auto");
+    expect(
+      Array.from(element.querySelectorAll("li.active"), (row) => row.dataset.sourceId),
+    ).toEqual(["symbol:auto"]);
+    expect(
+      Array.from(element.querySelectorAll("li.auto-selected"), (row) => row.dataset.sourceId),
+    ).toEqual([treeSitter.id]);
+    expect(
+      Array.from(element.querySelectorAll("li.selected"), (row) => row.dataset.sourceId),
+    ).toEqual(["symbol:auto"]);
+    expect(element.querySelector(".select-list-separator")).toBeNull();
     expect(Array.from(element.querySelectorAll(".badge"), (badge) => badge.textContent)).toEqual([
       "TS",
       "LS",
@@ -357,6 +366,139 @@ describe("document symbol source selector", () => {
     expect(element.querySelector(".select-list-info, .info-message")).toBeNull();
     expect(listView.selectList.getInfoMessage()).toBeNull();
     expect(element.textContent).not.toContain("ide-client");
+  });
+
+  it("keeps a short source list in provider order while marking the effective Auto source", async () => {
+    registry.setState(editor, {
+      mode: "auto",
+      sourceId: null,
+      source: languageServer,
+      status: "ready",
+    });
+    listView = new SourceListView(registry);
+    await listView.toggle(editor);
+    expect(listView.selectList.getDisplayedItems().map((source) => source.id)).toEqual([
+      "symbol:auto",
+      treeSitter.id,
+      languageServer.id,
+    ]);
+    const element = listView.selectList.getElement();
+    expect(
+      Array.from(element.querySelectorAll("li.active"), (row) => row.dataset.sourceId),
+    ).toEqual(["symbol:auto"]);
+    expect(
+      Array.from(element.querySelectorAll("li.auto-selected"), (row) => row.dataset.sourceId),
+    ).toEqual([languageServer.id]);
+    expect(element.querySelector("li.selected").dataset.sourceId).toBe("symbol:auto");
+    expect(element.querySelector(".select-list-separator")).toBeNull();
+    expect(registry.getFileSymbols).not.toHaveBeenCalled();
+  });
+
+  it("hoists the effective Auto source only when the source list scrolls", async () => {
+    const alternatives = Array.from({ length: 10 }, (_, index) => ({
+      ...languageServer,
+      id: `source-${index}`,
+      name: `Additional Source ${index}`,
+    }));
+    registry.sources = [treeSitter, ...alternatives, languageServer];
+    registry.setState(editor, {
+      mode: "auto",
+      sourceId: null,
+      source: languageServer,
+      status: "ready",
+    });
+    listView = new SourceListView(registry);
+    await listView.toggle(editor);
+    const element = listView.selectList.getElement();
+    const scroller = element.querySelector("ol.list-group");
+    scroller.style.maxHeight = "80px";
+    scroller.style.overflowY = "auto";
+    await conditionPromise(async () => {
+      await render();
+      return listView.selectList.getDisplayedItems()[1]?.id === languageServer.id;
+    }, "effective source pinned in an overflowing list");
+    expect(scroller.scrollHeight).toBeGreaterThan(scroller.clientHeight);
+    expect(
+      element.querySelector(`[data-source-id="${languageServer.id}"]`).nextElementSibling,
+    ).toBe(element.querySelector(".select-list-separator"));
+    expect(element.querySelector("li.auto-selected").dataset.sourceId).toBe(languageServer.id);
+    expect(element.querySelector("li.selected").dataset.sourceId).toBe("symbol:auto");
+
+    scroller.style.maxHeight = "1000px";
+    await conditionPromise(async () => {
+      await render();
+      return listView.selectList.getDisplayedItems()[1]?.id === treeSitter.id;
+    }, "natural source order after the list stops scrolling");
+    expect(element.querySelector(".select-list-separator")).toBeNull();
+    expect(listView.selectList.getDisplayedItems().map((source) => source.id)).toEqual([
+      "symbol:auto",
+      ...registry.sources.map((source) => source.id),
+    ]);
+  });
+
+  for (const status of ["idle", "loading", "starting", "unavailable", "error"]) {
+    it(`does not mark a candidate as an effective Auto source while ${status}`, async () => {
+      registry.setState(editor, {
+        mode: "auto",
+        sourceId: null,
+        source: languageServer,
+        status,
+      });
+      listView = new SourceListView(registry);
+      await listView.toggle(editor);
+      const element = listView.selectList.getElement();
+      expect(
+        Array.from(element.querySelectorAll("li.active"), (row) => row.dataset.sourceId),
+      ).toEqual(["symbol:auto"]);
+      expect(element.querySelector("li.auto-selected")).toBeNull();
+      expect(listView.selectList.getDisplayedItems().map((source) => source.id)).toEqual([
+        "symbol:auto",
+        treeSitter.id,
+        languageServer.id,
+      ]);
+    });
+  }
+
+  it("updates the effective Auto source without moving the keyboard selection", async () => {
+    listView = new SourceListView(registry);
+    await listView.toggle(editor);
+    await listView.selectList.selectItemById(languageServer.id);
+    registry.setState(editor, {
+      mode: "auto",
+      sourceId: null,
+      source: languageServer,
+      status: "ready",
+    });
+    await render();
+    const element = listView.selectList.getElement();
+    expect(
+      Array.from(element.querySelectorAll("li.active"), (row) => row.dataset.sourceId),
+    ).toEqual(["symbol:auto"]);
+    expect(
+      Array.from(element.querySelectorAll("li.auto-selected"), (row) => row.dataset.sourceId),
+    ).toEqual([languageServer.id]);
+    expect(
+      Array.from(element.querySelectorAll("li.selected"), (row) => row.dataset.sourceId),
+    ).toEqual([languageServer.id]);
+  });
+
+  it("selects the manual source when an opening refresh is superseded", async () => {
+    registry.setDocumentSource(editor, languageServer.id);
+    const pending = [];
+    spyOn(registry, "listDocumentSources").and.callFake(
+      () => new Promise((resolve) => pending.push(resolve)),
+    );
+    listView = new SourceListView(registry);
+    const opening = listView.toggle(editor);
+    await conditionPromise(() => pending.length === 1, "opening source list request");
+    registry.emitter.emit("providers");
+    await conditionPromise(() => pending.length === 2, "replacement source list request");
+    for (const resolve of pending) resolve(registry.sources);
+    await opening;
+    await render();
+    expect(listView.selectList.getElement().querySelector("li.selected").dataset.sourceId).toBe(
+      languageServer.id,
+    );
   });
 
   it("applies selection to the opening editor and returns its focus", async () => {
@@ -377,9 +519,18 @@ describe("document symbol source selector", () => {
     registry.setDocumentSource(editor, languageServer.id);
     listView = new SourceListView(registry);
     await listView.toggle(editor);
-    expect(listView.selectList.getElement().querySelector("li.active").dataset.sourceId).toBe(
+    const element = listView.selectList.getElement();
+    expect(
+      Array.from(element.querySelectorAll("li.active"), (row) => row.dataset.sourceId),
+    ).toEqual([languageServer.id]);
+    expect(element.querySelector("li.auto-selected")).toBeNull();
+    expect(element.querySelector("li.selected").dataset.sourceId).toBe(languageServer.id);
+    expect(listView.selectList.getDisplayedItems().map((source) => source.id)).toEqual([
+      "symbol:auto",
+      treeSitter.id,
       languageServer.id,
-    );
+    ]);
+    expect(element.querySelector(".select-list-separator")).toBeNull();
     await listView.selectList.selectItemById("symbol:auto");
     await listView.selectList.confirmSelection();
     expect(registry.setDocumentSource).toHaveBeenCalledWith(editor, null);
@@ -425,7 +576,7 @@ describe("document symbol source selector", () => {
     expect(listView.selectList.getInfoMessage()).toBeNull();
   });
 
-  it("hides an unavailable language server while retaining the manual choice", async () => {
+  it("keeps an unavailable manual source checked and disabled until Auto is chosen", async () => {
     registry.sources = [treeSitter];
     registry.setState(editor, {
       mode: "manual",
@@ -436,11 +587,24 @@ describe("document symbol source selector", () => {
     listView = new SourceListView(registry);
     await listView.toggle(editor);
     const element = listView.selectList.getElement();
-    expect(element.querySelector(`[data-source-id="${languageServer.id}"]`)).toBeNull();
+    const row = element.querySelector(`[data-source-id="${languageServer.id}"]`);
+    expect(row.classList.contains("active")).toBe(true);
+    expect(row.classList.contains("unavailable")).toBe(true);
+    expect(row.getAttribute("aria-disabled")).toBe("true");
+    expect(row.querySelector(".secondary-line").textContent).toBe(
+      "This source is unavailable for this document.",
+    );
+    expect(element.querySelector("li.selected").dataset.sourceId).toBe(languageServer.id);
     expect(element.querySelector(".select-list-info, .info-message")).toBeNull();
     expect(listView.selectList.getInfoMessage()).toBeNull();
     expect(registry.getDocumentSourceState(editor).sourceId).toBe(languageServer.id);
     expect(registry.getDocumentSourceState(editor).mode).toBe("manual");
+    await listView.selectList.confirmSelection();
+    expect(registry.setDocumentSource).not.toHaveBeenCalled();
+    expect(listView.selectListHost.isVisible()).toBe(true);
+    await listView.selectList.selectItemById("symbol:auto");
+    await listView.selectList.confirmSelection();
+    expect(registry.setDocumentSource).toHaveBeenCalledWith(editor, null);
   });
 
   it("always lists Tree-sitter while excluding language servers without symbol capability", async () => {
@@ -485,6 +649,12 @@ describe("document symbol source selector", () => {
     await render();
     listView.selectListHost.cancel();
     const other = await lumine.workspace.open();
+    registry.setState(other, {
+      mode: "auto",
+      sourceId: null,
+      source: languageServer,
+      status: "ready",
+    });
     await listView.toggle(other);
     finish([treeSitter]);
     await first;
