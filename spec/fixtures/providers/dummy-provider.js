@@ -1,51 +1,23 @@
-const { Point } = require('lumine');
-
-function last (arr) {
-  return arr[arr.length - 1];
-}
-
-const ICONS = [
-  'package',
-  'key',
-  'gear',
-  'tag',
-  null
-];
-
+const { Point } = require("lumine");
+const ICONS = ["package", "key", "gear", "tag", null];
+const documentSymbols = (editor) =>
+  Array.from({ length: Math.ceil(editor.getLineCount() / 3) }, (_, index) => ({
+    position: new Point(index * 3, 0),
+    name: `Symbol on Row ${index * 3 + 1}`,
+    icon: ICONS[index % (ICONS.length + 1)],
+  }));
 module.exports = {
-  packageName: 'symbol-provider-dummy',
-  name: 'Dummy',
-  isExclusive: true,
-  canProvideSymbols () {
-    return true;
+  packageName: "symbol-provider-dummy",
+  name: "Dummy",
+  canProvideDocumentSymbols: () => 1,
+  getDocumentSymbols: documentSymbols,
+  searchWorkspaceSymbols(_query, { paths }) {
+    return [0, 3, 6, 9, 12].map((row, index) => ({
+      position: new Point(row, 0),
+      name: `Symbol on Row ${row + 1}`,
+      directory: paths.at(-1),
+      file: "other-file.js",
+      icon: ICONS[index % (ICONS.length + 1)],
+    }));
   },
-  getSymbols (meta) {
-    let { editor, type } = meta;
-    let results = [];
-    if (type === 'file') {
-      let count = editor.getLineCount();
-      // Put a symbol on every third line.
-      for (let i = 0; i < count; i += 3) {
-        results.push({
-          position: new Point(i, 0),
-          name: `Symbol on Row ${i + 1}`,
-          icon: ICONS[(i / 3) % (ICONS.length + 1)]
-        });
-      }
-    } else if (type === 'project') {
-      let root = last(lumine.project.getPaths());
-      let count = editor.getLineCount();
-      // Put a symbol on every third line.
-      for (let i = 0; i < count; i += 3) {
-        results.push({
-          position: new Point(i, 0),
-          name: `Symbol on Row ${i + 1}`,
-          directory: root,
-          file: 'other-file.js',
-          icon: ICONS[i % (ICONS.length + 1)]
-        });
-      }
-    }
-    return results;
-  }
 };

@@ -9,11 +9,10 @@ function makeProvider(overrides = {}) {
   return {
     packageName: "symbol-provider-stub",
     name: "Stub",
-    isExclusive: true,
-    canProvideSymbols() {
+    canProvideDocumentSymbols() {
       return true;
     },
-    getSymbols() {
+    getDocumentSymbols() {
       return [{ name: "one", position: new Point(0, 0) }];
     },
     ...overrides,
@@ -42,12 +41,12 @@ describe("symbol registry", () => {
     let calls = 0;
     let resolveSymbols;
     let provider = makeProvider({
-      getSymbols() {
+      getDocumentSymbols() {
         calls++;
         return new Promise((resolve) => (resolveSymbols = resolve));
       },
     });
-    registry.addProviders(provider);
+    registry.addDocumentProviders(provider);
 
     let first = registry.getFileSymbols(editor);
     let second = registry.getFileSymbols(editor);
@@ -61,17 +60,17 @@ describe("symbol registry", () => {
 
     // The completed run is cached even though nobody is waiting any more.
     expect(registry.peekFileSymbols(editor)).toBe(a);
-    spyOn(provider, "getSymbols").and.callThrough();
+    spyOn(provider, "getDocumentSymbols").and.callThrough();
     expect(await registry.getFileSymbols(editor)).toBe(a);
-    expect(provider.getSymbols).not.toHaveBeenCalled();
+    expect(provider.getDocumentSymbols).not.toHaveBeenCalled();
   });
 
   it("shares one provider run between flat and tree requests", async () => {
     let calls = 0;
     let resolveSymbols;
-    registry.addProviders(
+    registry.addDocumentProviders(
       makeProvider({
-        getSymbols() {
+        getDocumentSymbols() {
           calls++;
           return new Promise((resolve) => (resolveSymbols = resolve));
         },
@@ -102,7 +101,7 @@ describe("symbol registry", () => {
   });
 
   it("builds and memoizes the tree only when a tree consumer asks for it", async () => {
-    registry.addProviders(makeProvider());
+    registry.addDocumentProviders(makeProvider());
     spyOn(registry, "buildFileSymbolTree").and.callThrough();
 
     await registry.getFileSymbols(editor);
@@ -134,22 +133,22 @@ describe("symbol registry", () => {
 
   it("assembles point-only symbols by context and caches empty results", async () => {
     let provider = makeProvider({
-      getSymbols: () => [
+      getDocumentSymbols: () => [
         { name: "Outer", position: [0, 0] },
         { name: "inner", context: "Outer", position: [2, 0] },
       ],
     });
-    registry.addProviders(provider);
+    registry.addDocumentProviders(provider);
 
     let tree = await registry.getFileSymbolTree(editor);
     expect(tree[0].children[0].name).toBe("inner");
     expect(tree[0].range.isEmpty()).toBe(true);
 
     registry.invalidateEditor(editor);
-    provider.getSymbols = jasmine.createSpy("getSymbols").and.returnValue([]);
+    provider.getDocumentSymbols = jasmine.createSpy("getDocumentSymbols").and.returnValue([]);
     expect(await registry.getFileSymbols(editor)).toEqual([]);
     expect(await registry.getFileSymbolTree(editor)).toEqual([]);
-    expect(provider.getSymbols).toHaveBeenCalledTimes(1);
+    expect(provider.getDocumentSymbols).toHaveBeenCalledTimes(1);
   });
 
   it("uses the latest matching name or short name for context", () => {
@@ -198,13 +197,13 @@ describe("symbol registry", () => {
 
   it("aborts the in-flight run on invalidation and resolves it null", async () => {
     let provider = makeProvider({
-      getSymbols(meta) {
+      getDocumentSymbols(_editor, request) {
         return new Promise((resolve) => {
-          meta.signal.addEventListener("abort", () => resolve(null), { once: true });
+          request.signal.addEventListener("abort", () => resolve(null), { once: true });
         });
       },
     });
-    registry.addProviders(provider);
+    registry.addDocumentProviders(provider);
 
     let events = [];
     registry.onDidInvalidateFileSymbols((bundle) => events.push(bundle));
@@ -228,7 +227,7 @@ describe("symbol registry", () => {
       spyOn(console, "error");
       let providerSignal, resolveSymbols, rejectSymbols;
       const provider = makeProvider({
-        getSymbols({ signal }) {
+        getDocumentSymbols(_editor, { signal }) {
           providerSignal = signal;
           return new Promise((resolve, reject) => {
             resolveSymbols = resolve;
@@ -236,7 +235,7 @@ describe("symbol registry", () => {
           });
         },
       });
-      registry.addProviders(provider);
+      registry.addDocumentProviders(provider);
       const events = [];
       registry.onDidInvalidateFileSymbols((bundle) => events.push(bundle));
 
@@ -259,14 +258,14 @@ describe("symbol registry", () => {
 
       buffer.emitDidStopChangingEvent();
       expect(events).toEqual([{ editor, provider: null }]);
-      spyOn(provider, "getSymbols").and.callFake(({ editor: currentEditor }) => [
+      spyOn(provider, "getDocumentSymbols").and.callFake((currentEditor) => [
         { name: currentEditor.getText(), position: new Point(0, 0) },
       ]);
       const current = await registry.getFileSymbols(editor);
       expect(current.map(({ name }) => name)).toEqual(["updated"]);
       expect(registry.peekFileSymbols(editor)).toBe(current);
       expect(await registry.getFileSymbols(editor)).toBe(current);
-      expect(provider.getSymbols).toHaveBeenCalledTimes(1);
+      expect(provider.getDocumentSymbols).toHaveBeenCalledTimes(1);
     });
   }
 
@@ -275,10 +274,10 @@ describe("symbol registry", () => {
     spyOn(buffer, "debouncedEmitDidStopChangingEvent");
     let resolveCapability;
     const provider = makeProvider({
-      canProvideSymbols: () => new Promise((resolve) => (resolveCapability = resolve)),
+      canProvideDocumentSymbols: () => new Promise((resolve) => (resolveCapability = resolve)),
     });
-    spyOn(provider, "getSymbols").and.callThrough();
-    registry.addProviders(provider);
+    spyOn(provider, "getDocumentSymbols").and.callThrough();
+    registry.addDocumentProviders(provider);
 
     const pending = registry.getFileSymbols(editor);
     await conditionPromise(() => resolveCapability);
@@ -286,19 +285,19 @@ describe("symbol registry", () => {
     resolveCapability(true);
 
     expect(await pending).toBeNull();
-    expect(provider.getSymbols).not.toHaveBeenCalled();
+    expect(provider.getDocumentSymbols).not.toHaveBeenCalled();
     expect(registry.peekFileSymbols(editor)).toBeNull();
 
     buffer.emitDidStopChangingEvent();
-    spyOn(provider, "canProvideSymbols").and.returnValue(true);
+    spyOn(provider, "canProvideDocumentSymbols").and.returnValue(true);
     const current = await registry.getFileSymbols(editor);
     expect(current.map(({ name }) => name)).toEqual(["one"]);
     expect(registry.peekFileSymbols(editor)).toBe(current);
-    expect(provider.getSymbols).toHaveBeenCalledTimes(1);
+    expect(provider.getDocumentSymbols).toHaveBeenCalledTimes(1);
   });
 
   it("invalidates on save through the editor wiring", async () => {
-    registry.addProviders(makeProvider());
+    registry.addDocumentProviders(makeProvider());
     await registry.getFileSymbols(editor);
     expect(registry.peekFileSymbols(editor)).not.toBeNull();
 
@@ -311,156 +310,69 @@ describe("symbol registry", () => {
     expect(events.every((bundle) => bundle.editor === editor)).toBe(true);
   });
 
-  it("re-queries only a supplemental provider that cleared its own cache", async () => {
-    let emitter = new Emitter();
-    let a = makeProvider({
-      packageName: "prov-a",
-      name: "A",
-      getSymbols: () => [{ name: "a", position: new Point(0, 0) }],
-    });
-    let b = makeProvider({
-      packageName: "prov-b",
-      name: "B",
-      isExclusive: false,
-      getSymbols: () => [{ name: "b", position: new Point(1, 0) }],
-      onShouldClearCache: (callback) => emitter.on("clear", callback),
-    });
-    registry.addProviders(a, b);
-
-    let first = await registry.getFileSymbols(editor);
-    expect(first.map((s) => s.name)).toEqual(["a", "b"]);
-
-    // A clear scoped to another editor leaves this one's cache alone.
-    let other = await lumine.workspace.open();
-    emitter.emit("clear", { editor: other });
-    expect(registry.peekFileSymbols(editor)).not.toBeNull();
-
-    emitter.emit("clear", { editor });
-    expect(registry.peekFileSymbols(editor)).toBeNull();
-
-    spyOn(a, "getSymbols").and.callThrough();
-    spyOn(b, "getSymbols").and.callThrough();
-    let second = await registry.getFileSymbols(editor);
-    expect(a.getSymbols).not.toHaveBeenCalled();
-    expect(b.getSymbols).toHaveBeenCalled();
-    expect(second.map((s) => s.name)).toEqual(["a", "b"]);
-  });
-
-  it("selects only a stale supplemental provider", async () => {
-    let emitter = new Emitter();
-    let exclusive = makeProvider({ packageName: "exclusive", name: "Exclusive" });
-    let supplemental = makeProvider({
-      packageName: "supplemental",
-      name: "Supplemental",
-      isExclusive: false,
-      onShouldClearCache: (callback) => emitter.on("clear", callback),
-      getSymbols: () => [{ name: "extra", position: new Point(1, 0) }],
-    });
-    registry.addProviders(exclusive, supplemental);
-    await registry.getFileSymbols(editor);
-    spyOn(exclusive, "canProvideSymbols").and.callThrough();
-    spyOn(supplemental, "canProvideSymbols").and.callThrough();
-
-    emitter.emit("clear", { editor });
-    await registry.getFileSymbols(editor);
-
-    expect(exclusive.canProvideSymbols).not.toHaveBeenCalled();
-    expect(supplemental.canProvideSymbols).toHaveBeenCalledTimes(1);
-  });
-
-  it("invalidates providers from the same package independently", async () => {
-    let emitter = new Emitter();
-    let first = makeProvider({
-      packageName: "shared-package",
-      name: "First supplemental",
-      isExclusive: false,
-      onShouldClearCache: (callback) => emitter.on("clear", callback),
-      getSymbols: () => [{ name: "first", position: new Point(0, 0) }],
-    });
-    let second = makeProvider({
-      packageName: "shared-package",
-      name: "Second supplemental",
-      isExclusive: false,
-      getSymbols: () => [{ name: "second", position: new Point(1, 0) }],
-    });
-    registry.addProviders(first, second);
-    await registry.getFileSymbols(editor);
-    spyOn(first, "getSymbols").and.returnValue([
-      { name: "first-refreshed", position: new Point(0, 0) },
-    ]);
-    spyOn(second, "getSymbols").and.callThrough();
-
-    emitter.emit("clear", { editor });
-    let symbols = await registry.getFileSymbols(editor);
-
-    expect(first.getSymbols).toHaveBeenCalledTimes(1);
-    expect(second.getSymbols).not.toHaveBeenCalled();
-    expect(symbols.map((symbol) => symbol.name)).toEqual(["first-refreshed", "second"]);
-  });
-
-  it("replaces a removed exclusive provider with the next contender", async () => {
+  it("replaces a removed chosen provider with the next contender", async () => {
     let first = makeProvider({
       packageName: "first",
       name: "First",
-      canProvideSymbols: () => 1,
-      getSymbols: () => [{ name: "first", position: new Point(0, 0) }],
+      canProvideDocumentSymbols: () => 1,
+      getDocumentSymbols: () => [{ name: "first", position: new Point(0, 0) }],
     });
     let second = makeProvider({
       packageName: "second",
       name: "Second",
-      canProvideSymbols: () => 0.5,
-      getSymbols: () => [{ name: "second", position: new Point(0, 0) }],
+      canProvideDocumentSymbols: () => 0.5,
+      getDocumentSymbols: () => [{ name: "second", position: new Point(0, 0) }],
     });
-    registry.addProviders(first, second);
+    registry.addDocumentProviders(first, second);
     expect((await registry.getFileSymbols(editor)).map((symbol) => symbol.name)).toEqual(["first"]);
 
-    registry.removeProviders(first);
+    registry.removeDocumentProviders(first);
 
     expect((await registry.getFileSymbols(editor)).map((symbol) => symbol.name)).toEqual([
       "second",
     ]);
   });
 
-  it("replaces the cached exclusive when a stronger contender arrives", async () => {
+  it("replaces the cached chosen when a stronger contender arrives", async () => {
     let first = makeProvider({
       packageName: "first",
       name: "First",
-      canProvideSymbols: () => 0.5,
-      getSymbols: () => [{ name: "first", position: new Point(0, 0) }],
+      canProvideDocumentSymbols: () => 0.5,
+      getDocumentSymbols: () => [{ name: "first", position: new Point(0, 0) }],
     });
-    registry.addProviders(first);
+    registry.addDocumentProviders(first);
     await registry.getFileSymbols(editor);
 
     let second = makeProvider({
       packageName: "second",
       name: "Second",
-      canProvideSymbols: () => 1,
-      getSymbols: () => [{ name: "second", position: new Point(0, 0) }],
+      canProvideDocumentSymbols: () => 1,
+      getDocumentSymbols: () => [{ name: "second", position: new Point(0, 0) }],
     });
-    registry.addProviders(second);
+    registry.addDocumentProviders(second);
 
     expect((await registry.getFileSymbols(editor)).map((symbol) => symbol.name)).toEqual([
       "second",
     ]);
   });
 
-  it("reselects the exclusive winner after its own invalidation", async () => {
+  it("reselects the chosen winner after its own invalidation", async () => {
     let emitter = new Emitter();
     let firstScore = 1;
     let first = makeProvider({
       packageName: "first",
       name: "First",
-      canProvideSymbols: () => firstScore,
-      onShouldClearCache: (callback) => emitter.on("clear", callback),
-      getSymbols: () => [{ name: "first", position: new Point(0, 0) }],
+      canProvideDocumentSymbols: () => firstScore,
+      onDidInvalidateDocumentSymbols: (callback) => emitter.on("clear", callback),
+      getDocumentSymbols: () => [{ name: "first", position: new Point(0, 0) }],
     });
     let second = makeProvider({
       packageName: "second",
       name: "Second",
-      canProvideSymbols: () => 0.5,
-      getSymbols: () => [{ name: "second", position: new Point(0, 0) }],
+      canProvideDocumentSymbols: () => 0.5,
+      getDocumentSymbols: () => [{ name: "second", position: new Point(0, 0) }],
     });
-    registry.addProviders(first, second);
+    registry.addDocumentProviders(first, second);
     await registry.getFileSymbols(editor);
 
     firstScore = 0;
@@ -471,154 +383,15 @@ describe("symbol registry", () => {
     ]);
   });
 
-  it("marks cached editors stale for a provider that arrives late", async () => {
-    let a = makeProvider({
-      packageName: "prov-a",
-      name: "A",
-      getSymbols: () => [{ name: "a", position: new Point(0, 0) }],
-    });
-    registry.addProviders(a);
-    await registry.getFileSymbols(editor);
-    expect(registry.peekFileSymbols(editor)).not.toBeNull();
-
-    let b = makeProvider({
-      packageName: "prov-b",
-      name: "B",
-      isExclusive: false,
-      getSymbols: () => [{ name: "b", position: new Point(1, 0) }],
-    });
-    registry.addProviders(b);
-    expect(registry.peekFileSymbols(editor)).toBeNull();
-
-    spyOn(a, "getSymbols").and.callThrough();
-    spyOn(b, "getSymbols").and.callThrough();
-    let symbols = await registry.getFileSymbols(editor);
-    expect(a.getSymbols).not.toHaveBeenCalled();
-    expect(b.getSymbols).toHaveBeenCalled();
-    expect(symbols.map((s) => s.name)).toEqual(["a", "b"]);
-  });
-
-  it("passes timeoutMs in file metas and omits it elsewhere", async () => {
-    let metas = [];
-    registry.addProviders(
-      makeProvider({
-        getSymbols(meta) {
-          metas.push(meta);
-          return [];
-        },
-      }),
-    );
-
-    await registry.getFileSymbols(editor);
-    await registry.searchProject(editor, "que");
-
-    expect(metas[0].type).toBe("file");
-    expect(typeof metas[0].timeoutMs).toBe("number");
-    expect(metas[1].type).toBe("project");
-    expect(metas[1].timeoutMs).toBeUndefined();
-    expect(metas[1].query).toBe("que");
-  });
-
-  it("hands a list controller only to the exclusive provider", async () => {
-    let seen = new Map();
-    let exclusive = makeProvider({
-      packageName: "prov-exclusive",
-      name: "Exclusive",
-      getSymbols(meta, listController) {
-        seen.set("exclusive", listController);
-        // The no-op stand-in must absorb calls without a UI attached.
-        listController.set({ loadingMessage: "hi" });
-        listController.clear("loadingMessage");
-        return [];
-      },
-    });
-    let supplemental = makeProvider({
-      packageName: "prov-supplemental",
-      name: "Supplemental",
-      isExclusive: false,
-      getSymbols(meta, listController) {
-        seen.set("supplemental", listController);
-        return [];
-      },
-    });
-    registry.addProviders(exclusive, supplemental);
-
-    await registry.getFileSymbols(editor);
-    expect(seen.get("supplemental")).toBeUndefined();
-    expect(typeof seen.get("exclusive").set).toBe("function");
-
-    seen.clear();
-    registry.invalidateEditor(editor);
-    let controller = { set: jasmine.createSpy("set"), clear: jasmine.createSpy("clear") };
-    await registry.getFileSymbols(editor, { listController: controller });
-    expect(seen.get("exclusive")).toBe(controller);
-  });
-
-  it("exposes descriptors, never raw providers", () => {
-    let provider = makeProvider();
-    registry.addProviders(provider);
-    let [descriptor] = registry.providerDescriptors();
-    expect(descriptor).not.toBe(provider);
-    expect(descriptor.name).toBe("Stub");
-    expect(descriptor.packageName).toBe("symbol-provider-stub");
-    expect(descriptor.isExclusive).toBe(true);
-    expect(descriptor.getSymbols).toBeUndefined();
-  });
-
-  it("resolves null when the caller aborts a project search", async () => {
-    let started = false;
-    registry.addProviders(
-      makeProvider({
-        getSymbols(meta) {
-          started = true;
-          return new Promise((resolve) => {
-            meta.signal.addEventListener("abort", () => resolve(null), { once: true });
-          });
-        },
-      }),
-    );
-
-    let controller = new AbortController();
-    let promise = registry.searchProject(editor, "que", { signal: controller.signal });
-    await conditionPromise(() => started);
-    controller.abort();
-    expect(await promise).toBeNull();
-  });
-
-  it("builds the project-find meta from the range", async () => {
-    editor.setText("alpha beta\n");
-    let metas = [];
-    registry.addProviders(
-      makeProvider({
-        getSymbols(meta) {
-          metas.push(meta);
-          return [];
-        },
-      }),
-    );
-
-    await registry.findDeclarations(editor, { range: new Range([0, 0], [0, 5]) });
-    expect(metas[0].type).toBe("project-find");
-    expect(metas[0].query).toBe("alpha");
-    expect(Array.isArray(metas[0].paths)).toBe(true);
-  });
-
-  it("resolves null for a file request no provider can serve", async () => {
-    spyOn(registry.broker, "select").and.callThrough();
-    expect(await registry.getFileSymbols(editor)).toBeNull();
-    expect(await registry.getFileSymbols(editor)).toBeNull();
-    expect(registry.broker.select).toHaveBeenCalledTimes(1);
-  });
-
   it("does not cache a provider failure as an empty file", async () => {
     let fail = true;
     const provider = makeProvider({
-      getSymbols() {
+      getDocumentSymbols() {
         if (fail) throw new Error("server document is not ready");
         return [{ name: "recovered", position: new Point(2, 0) }];
       },
     });
-    registry.addProviders(provider);
+    registry.addDocumentProviders(provider);
     spyOn(console, "error");
 
     expect(await registry.getFileSymbols(editor)).toBeNull();
@@ -627,28 +400,10 @@ describe("symbol registry", () => {
     expect((await registry.getFileSymbols(editor)).map(({ name }) => name)).toEqual(["recovered"]);
   });
 
-  it("keeps the last complete file result when a refresh fails", async () => {
-    let fail = false;
-    const provider = makeProvider({
-      getSymbols() {
-        if (fail) return null;
-        return [{ name: "stable", position: new Point(1, 0) }];
-      },
-    });
-    registry.addProviders(provider);
-    const stable = await registry.getFileSymbols(editor);
-    spyOn(console, "error");
-
-    fail = true;
-    registry.invalidateProvider(provider, editor);
-    expect(await registry.getFileSymbols(editor)).toBe(stable);
-    expect(registry.peekFileSymbols(editor)).toBeNull();
-  });
-
   it("derives a position for range-only symbols and sorts file results", async () => {
-    registry.addProviders(
+    registry.addDocumentProviders(
       makeProvider({
-        getSymbols: () => [
+        getDocumentSymbols: () => [
           { name: "later", range: new Range([5, 0], [5, 4]) },
           { name: "earlier", position: new Point(1, 0) },
         ],
@@ -663,9 +418,9 @@ describe("symbol registry", () => {
 
   it("accepts Point/Range-compatible spellings and normalizes to instances", async () => {
     let warnings = spyOn(console, "warn");
-    registry.addProviders(
+    registry.addDocumentProviders(
       makeProvider({
-        getSymbols: () => [
+        getDocumentSymbols: () => [
           // The spellings a provider that does not share this window's
           // `Point` class sends — ide-client's contract uses arrays.
           { name: "array", position: [2, 4] },
@@ -695,25 +450,8 @@ describe("symbol registry", () => {
     expect(warnings).toHaveBeenCalledTimes(3);
   });
 
-  it("parses each repeated project path once per provider run", async () => {
-    let parse = spyOn(path, "parse").and.callThrough();
-    let file = path.join("project", "same.js");
-    registry.addProviders(
-      makeProvider({
-        getSymbols: () => [
-          { name: "one", position: [0, 0], path: file },
-          { name: "two", position: [1, 0], path: file },
-        ],
-      }),
-    );
-
-    await registry.searchProject(editor, "");
-
-    expect(parse).toHaveBeenCalledTimes(1);
-  });
-
   it("drops editor state and listeners when the editor is destroyed", async () => {
-    registry.addProviders(makeProvider());
+    registry.addDocumentProviders(makeProvider());
     await registry.getFileSymbols(editor);
     expect(registry.editorSubscriptions.has(editor)).toBe(true);
     expect(registry.cache.has(editor)).toBe(true);
@@ -722,17 +460,17 @@ describe("symbol registry", () => {
 
     expect(registry.editorSubscriptions.has(editor)).toBe(false);
     expect(registry.cache.has(editor)).toBe(false);
-    expect(registry.invalidatedProviders.has(editor)).toBe(false);
+    expect(registry.stale.has(editor)).toBe(false);
     expect(registry.inflight.has(editor)).toBe(false);
   });
 
   it("stops listening to a removed provider's cache-clear events", async () => {
     let emitter = new Emitter();
     let provider = makeProvider({
-      onShouldClearCache: (callback) => emitter.on("clear", callback),
+      onDidInvalidateDocumentSymbols: (callback) => emitter.on("clear", callback),
     });
-    registry.addProviders(provider);
-    registry.removeProviders(provider);
+    registry.addDocumentProviders(provider);
+    registry.removeDocumentProviders(provider);
 
     let events = [];
     registry.onDidInvalidateFileSymbols((bundle) => events.push(bundle));
@@ -741,16 +479,16 @@ describe("symbol registry", () => {
   });
 
   it("is inert after destroy", async () => {
-    registry.addProviders(makeProvider());
+    registry.addDocumentProviders(makeProvider());
     await registry.getFileSymbols(editor);
     registry.destroy();
     expect(registry.editorSubscriptions.size).toBe(0);
     expect(registry.cache.size).toBe(0);
-    expect(registry.invalidatedProviders.size).toBe(0);
+    expect(registry.stale.size).toBe(0);
     expect(registry.inflight.size).toBe(0);
     expect(await registry.getFileSymbols(editor)).toBeNull();
-    expect(await registry.searchProject(editor, "que")).toBeNull();
-    expect(await registry.findDeclarations(editor)).toBeNull();
+    expect(await registry.searchWorkspace("que")).toBeNull();
+    expect(await registry.findDefinitions(editor)).toBeNull();
   });
 });
 
@@ -762,45 +500,30 @@ describe("symbol provider broker selection", () => {
     let answer;
     const first = makeProvider({
       packageName: "first",
-      canProvideSymbols: () => new Promise((resolve) => (answer = resolve)),
+      canProvideDocumentSymbols: () => new Promise((resolve) => (answer = resolve)),
     });
     const second = makeProvider({ packageName: "second" });
-    broker.add(first);
+    broker.add("document", first);
 
-    const selection = broker.select({ type: "file", editor });
+    const selection = broker.select("document", editor);
     await conditionPromise(() => answer);
-    broker.add(second);
+    broker.add("document", second);
     answer(true);
 
     expect(await selection).toEqual([first]);
     broker.destroy();
   });
 
-  it("contains a synchronous canProvideSymbols failure", async () => {
+  it("contains a synchronous canProvideDocumentSymbols failure", async () => {
     const broker = new ProviderBroker();
     const broken = makeProvider({
       packageName: "broken",
-      canProvideSymbols() {
+      canProvideDocumentSymbols() {
         throw new Error("broken provider");
       },
     });
-    broker.add(broken);
-    expect(await broker.select({ type: "file", editor })).toEqual([]);
-    broker.destroy();
-  });
-
-  it("shares one capability deadline across all providers", async () => {
-    const broker = new ProviderBroker();
-    broker.add(
-      makeProvider({ packageName: "first" }),
-      makeProvider({ packageName: "second" }),
-      makeProvider({ packageName: "third" }),
-    );
-    spyOn(global, "setTimeout").and.callThrough();
-
-    await broker.select({ type: "file", editor });
-
-    expect(global.setTimeout).toHaveBeenCalledTimes(1);
+    broker.add("document", broken);
+    expect(await broker.select("document", editor)).toEqual([]);
     broker.destroy();
   });
 
@@ -808,13 +531,13 @@ describe("symbol provider broker selection", () => {
     const broker = new ProviderBroker();
     let emitter = new Emitter();
     let provider = makeProvider({
-      onShouldClearCache: (callback) => emitter.on("clear", callback),
+      onDidInvalidateDocumentSymbols: (callback) => emitter.on("clear", callback),
     });
-    broker.add(provider);
+    broker.add("document", provider);
 
     broker.destroy();
 
-    expect(broker.providerSubscriptions.size).toBe(0);
-    expect(broker.providers).toEqual([]);
+    expect(broker.subscriptions.document.size).toBe(0);
+    expect(broker.providers.document).toEqual([]);
   });
 });

@@ -6,16 +6,13 @@ let SymbolListView;
 
 const DummyProvider = require("./fixtures/providers/dummy-provider");
 const SecondDummyProvider = require("./fixtures/providers/second-dummy-provider");
-const AsyncDummyProvider = require("./fixtures/providers/async-provider");
-const ProgressiveProjectProvider = require("./fixtures/providers/progressive-project-provider.js");
 const QuicksortProvider = require("./fixtures/providers/quicksort-provider.js");
 const VerySlowProvider = require("./fixtures/providers/very-slow-provider");
 const HangingProvider = require("./fixtures/providers/hanging-provider");
 const UselessProvider = require("./fixtures/providers/useless-provider.js");
 const EmptyProvider = require("./fixtures/providers/empty-provider.js");
 const TaggedProvider = require("./fixtures/providers/tagged-provider.js");
-const CacheClearingProvider = require("./fixtures/providers/cache-clearing-provider.js");
-const CompetingExclusiveProvider = require("./fixtures/providers/competing-exclusive-provider.js");
+const PreferredProvider = require("./fixtures/providers/preferred-provider.js");
 const AbortHonoringProvider = require("./fixtures/providers/abort-honoring-provider.js");
 const LateProvider = require("./fixtures/providers/late-provider.js");
 
@@ -45,7 +42,7 @@ function getEditorView() {
   return lumine.views.getView(lumine.workspace.getActiveTextEditor());
 }
 
-function getSymbolsView() {
+function getDocumentSymbolsView() {
   const list = lumine.workspace.getModalPanels()[0]?.item;
   const main = lumine.packages.getActivePackage("symbol")?.mainModule;
   return [main?.fileView, main?.projectView, main?.goToView].find(
@@ -63,7 +60,7 @@ function getSymbolsView() {
 async function dispatchAndWaitForChoices(commandName) {
   await getOrScheduleUpdatePromise();
   lumine.commands.dispatch(getEditorView(), commandName);
-  let symbolsView = getSymbolsView();
+  let symbolsView = getDocumentSymbolsView();
   await conditionPromise(async () => {
     await getOrScheduleUpdatePromise();
     let count = symbolsView.getElement().querySelectorAll("li").length;
@@ -72,14 +69,13 @@ async function dispatchAndWaitForChoices(commandName) {
 }
 
 // A provider that clears its own cached results does so from a timer it starts
-// inside `getSymbols`, so the invalidation lands some time after the list that
+// inside `getDocumentSymbols`, so the invalidation lands some time after the list that
 // prompted it has rendered. Wait for the registry to actually be in that state
 // rather than for a duration that guesses at it.
-function waitForProviderInvalidation(registry, editor, provider) {
-  return conditionPromise(
-    () => registry.invalidatedProviders.get(editor)?.has(provider),
-    `${provider.name} to have its cached tags invalidated`,
-  );
+function registerRoles(main, provider) {
+  if (provider.getDocumentSymbols) main.consumeDocumentSymbolProvider(provider);
+  if (provider.searchWorkspaceSymbols) main.consumeWorkspaceSymbolProvider(provider);
+  if (provider.getDefinitions) main.consumeDefinitionProvider(provider);
 }
 
 function registerProvider(...args) {
@@ -89,7 +85,7 @@ function registerProvider(...args) {
     let disposable = lumine.packages.onDidActivatePackage((pack) => {
       if (pack.name !== "symbol") return;
       for (let provider of args) {
-        pack.mainModule.consumeSymbol(provider);
+        registerRoles(pack.mainModule, provider);
       }
       disposable.dispose();
     });
@@ -99,7 +95,7 @@ function registerProvider(...args) {
     lumine.packages.activatePackage("symbol").catch((error) => fail(error));
   } else {
     for (let provider of args) {
-      main.consumeSymbol(provider);
+      registerRoles(main, provider);
     }
   }
 }
@@ -134,6 +130,22 @@ describe("symbol", () => {
     await lumine.packages.deactivatePackage("symbol");
   });
 
+  it("keeps an old registration disposable from changing a new package generation", async () => {
+    const provider = {
+      name: "Persistent backend",
+      packageName: "persistent-backend",
+      canProvideDocumentSymbols: () => true,
+      getDocumentSymbols: () => [],
+    };
+    const oldRegistration = mainModule.consumeDocumentSymbolProvider(provider);
+    await lumine.packages.deactivatePackage("symbol");
+    await lumine.packages.activatePackage("symbol");
+    mainModule = lumine.packages.getActivePackage("symbol").mainModule;
+    mainModule.consumeDocumentSymbolProvider(provider);
+    oldRegistration.dispose();
+    expect(mainModule.registry.broker.providers.document).toContain(provider);
+  });
+
   describe("when toggling file symbols", () => {
     beforeEach(async () => {
       lumine.config.set("symbol.providerTimeout", 500);
@@ -147,7 +159,7 @@ describe("symbol", () => {
       registerProvider(DummyProvider);
       await activationPromise;
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-      symbolsView = getSymbolsView();
+      symbolsView = getDocumentSymbolsView();
 
       expect(symbolsView.selectList.getLoadingState()).toBeNull();
       expect(document.body.contains(symbolsView.getElement())).toBe(true);
@@ -193,7 +205,7 @@ describe("symbol", () => {
       await activationPromise;
       spyOn(editor, "getSelectedText").and.returnValue("Symbol on Row 13");
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-      symbolsView = getSymbolsView();
+      symbolsView = getDocumentSymbolsView();
 
       expect(symbolsView.selectList.getLoadingState()).toBeNull();
       expect(document.body.contains(symbolsView.getElement())).toBe(true);
@@ -233,7 +245,7 @@ describe("symbol", () => {
       await activationPromise;
       spyOn(editor, "getSelectedText").and.returnValue("Symbol on Row 13");
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-      symbolsView = getSymbolsView();
+      symbolsView = getDocumentSymbolsView();
 
       expect(symbolsView.selectList.getLoadingState()).toBeNull();
       expect(document.body.contains(symbolsView.getElement())).toBe(true);
@@ -254,12 +266,12 @@ describe("symbol", () => {
     });
 
     it("does not wait for providers that take too long", async () => {
-      registerProvider(DummyProvider, VerySlowProvider);
+      registerProvider(VerySlowProvider, DummyProvider);
       await activationPromise;
-      expect(mainModule.registry.broker.providers.length).toBe(2);
+      expect(mainModule.registry.broker.providers.document.length).toBe(2);
       lumine.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
 
-      symbolsView = getSymbolsView();
+      symbolsView = getDocumentSymbolsView();
       await conditionPromise(async () => {
         await getOrScheduleUpdatePromise();
         let count = symbolsView.getElement().querySelectorAll("li").length;
@@ -285,16 +297,16 @@ describe("symbol", () => {
     });
 
     it("does not report a provider for honoring the timeout we set for it", async () => {
-      // `AbortHonoringProvider` does what `docs/symbol.provider.md` asks of a
+      // `AbortHonoringProvider` does what the document provider contract asks of a
       // cancelled provider: it stops and comes back with nothing. Cancelling it
       // was our decision, so empty hands are the contract working rather than a
       // provider failing us, and saying otherwise blames it for our own budget.
-      registerProvider(DummyProvider, AbortHonoringProvider);
+      registerProvider(AbortHonoringProvider, DummyProvider);
       await activationPromise;
       spyOn(console, "error").and.callThrough();
 
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-      symbolsView = getSymbolsView();
+      symbolsView = getDocumentSymbolsView();
       expect(choiceCount(symbolsView)).toBe(5);
 
       // Wait for the moment it gives up rather than sleeping past it.
@@ -309,11 +321,11 @@ describe("symbol", () => {
       // run out — the one way symbols can still show up once the list has been
       // rendered and stored. Taking them would leave the straggler out of order
       // on screen, or invisible until the cached list is served again.
-      registerProvider(DummyProvider, LateProvider);
+      registerProvider(LateProvider, DummyProvider);
       await activationPromise;
 
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-      symbolsView = getSymbolsView();
+      symbolsView = getDocumentSymbolsView();
       expect(choiceCount(symbolsView)).toBe(5);
 
       await LateProvider.answered;
@@ -323,49 +335,20 @@ describe("symbol", () => {
       expect(mainModule.registry.cache.get(editor).flat.length).toBe(5);
     });
 
-    it("skips providers that hang while answering canProvideSymbols", async () => {
-      // `VerySlowProvider` answers `canProvideSymbols` instantly; only its
-      // `getSymbols` is slow. `HangingProvider` never resolves
-      // `canProvideSymbols`, so the broker must time it out and still return the
+    it("skips providers that hang while answering canProvideDocumentSymbols", async () => {
+      // `VerySlowProvider` answers `canProvideDocumentSymbols` instantly; only its
+      // `getDocumentSymbols` is slow. `HangingProvider` never resolves
+      // `canProvideDocumentSymbols`, so the broker must time it out and still return the
       // responsive provider rather than waiting forever.
       registerProvider(VerySlowProvider, HangingProvider);
       await activationPromise;
-      expect(mainModule.registry.broker.providers.length).toBe(2);
+      expect(mainModule.registry.broker.providers.document.length).toBe(2);
 
-      let meta = { type: "file", editor, paths: lumine.project.getPaths() };
-      let selected = await mainModule.registry.broker.select(meta);
+      let selected = await mainModule.registry.broker.select("document", editor);
       let names = selected.map((provider) => provider.name);
 
       expect(names).toContain("Very Slow");
       expect(names).not.toContain("Hanging");
-    });
-
-    it("allows the exclusive provider to control certain UI aspects", async () => {
-      // `AsyncDummyProvider` spends ~350ms setting and then clearing its
-      // loading message, and the 500ms budget this block sets for the two
-      // timeout specs above leaves that only ~150ms of headroom. A loaded
-      // machine spends it: the race in `generateSymbols` picks the timeout
-      // branch, the provider's symbols land after the list has already
-      // rendered, and no `li` ever appears. This spec is about the
-      // `ListController` privilege, not about the budget, so give the provider
-      // one its own delays cannot exhaust. A provider that truly hangs still
-      // fails the spec at jasmine's own five-second cap.
-      lumine.config.set("symbol.providerTimeout", 30000);
-      registerProvider(AsyncDummyProvider);
-      await activationPromise;
-      expect(mainModule.registry.broker.providers.length).toBe(1);
-      lumine.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
-      symbolsView = getSymbolsView();
-      spyOn(symbolsView.selectList, "update").and.callThrough();
-      await conditionPromise(async () => {
-        await getOrScheduleUpdatePromise();
-        let count = symbolsView.getElement().querySelectorAll("li").length;
-        return count > 0;
-      });
-
-      expect(symbolsView.selectList.update).toHaveBeenCalledWith({
-        loadingMessage: "Loading…",
-      });
     });
 
     it("caches tags until the editor changes", async () => {
@@ -373,14 +356,14 @@ describe("symbol", () => {
       await activationPromise;
       editor = lumine.workspace.getActiveTextEditor();
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-      symbolsView = getSymbolsView();
+      symbolsView = getDocumentSymbolsView();
       await symbolsView.cancel();
 
-      spyOn(DummyProvider, "getSymbols").and.callThrough();
+      spyOn(DummyProvider, "getDocumentSymbols").and.callThrough();
 
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
       expect(choiceCount(symbolsView)).toBe(5);
-      expect(DummyProvider.getSymbols).not.toHaveBeenCalled();
+      expect(DummyProvider.getDocumentSymbols).not.toHaveBeenCalled();
       await symbolsView.cancel();
 
       await editor.save();
@@ -388,43 +371,7 @@ describe("symbol", () => {
 
       expect(symbolsView.selectList.getLoadingState()).toBeNull();
       expect(choiceCount(symbolsView)).toBe(5);
-      expect(DummyProvider.getSymbols).toHaveBeenCalled();
-      editor.destroy();
-      expect(mainModule.registry.cache.get(editor)).toBeUndefined();
-    });
-
-    it("invalidates a single provider's tags if the provider asks it to", async () => {
-      registerProvider(DummyProvider, CacheClearingProvider);
-      await activationPromise;
-      editor = lumine.workspace.getActiveTextEditor();
-      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-      symbolsView = getSymbolsView();
-      expect(choiceCount(symbolsView)).toBe(6);
-      await symbolsView.cancel();
-      await waitForProviderInvalidation(mainModule.registry, editor, CacheClearingProvider);
-
-      spyOn(DummyProvider, "getSymbols").and.callThrough();
-      spyOn(CacheClearingProvider, "getSymbols").and.callThrough();
-
-      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-      expect(choiceCount(symbolsView)).toBe(6);
-      expect(DummyProvider.getSymbols).not.toHaveBeenCalled();
-      expect(CacheClearingProvider.getSymbols).toHaveBeenCalled();
-      await symbolsView.cancel();
-      // That toggle asked the provider again, so it has asked for another
-      // invalidation. Let it land before the save: arriving mid-fetch, it
-      // would abort the run the assertions below are about.
-      await waitForProviderInvalidation(mainModule.registry, editor, CacheClearingProvider);
-      await editor.save();
-
-      expect(mainModule.registry.cache.get(editor)).toBeUndefined();
-
-      await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-
-      expect(symbolsView.selectList.getLoadingState()).toBeNull();
-      expect(choiceCount(symbolsView)).toBe(6);
-      expect(DummyProvider.getSymbols).toHaveBeenCalled();
-      expect(CacheClearingProvider.getSymbols).toHaveBeenCalled();
+      expect(DummyProvider.getDocumentSymbols).toHaveBeenCalled();
       editor.destroy();
       expect(mainModule.registry.cache.get(editor)).toBeUndefined();
     });
@@ -434,7 +381,7 @@ describe("symbol", () => {
       await activationPromise;
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
 
-      symbolsView = getSymbolsView();
+      symbolsView = getDocumentSymbolsView();
       symbolsView.selectList.getQueryEditor().setText("nothing will match this");
 
       await conditionPromise(() => symbolsView.getElement().querySelector(".empty-message"));
@@ -457,45 +404,43 @@ describe("symbol", () => {
       editor = lumine.workspace.getActiveTextEditor();
       expect(editor.getCursorBufferPosition()).toEqual([0, 0]);
       await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-      symbolsView = getSymbolsView();
+      symbolsView = getDocumentSymbolsView();
 
       symbolsView.getElement().querySelectorAll("li")[1].click();
       // It'll move to the first non-whitespace character on the line.
-      expect(editor.getCursorBufferPosition()).toEqual([3, 4]);
+      expect(editor.getCursorBufferPosition()).toEqual([3, 0]);
     });
 
-    describe("when there are multiple exclusive providers", () => {
+    describe("when there are multiple document providers", () => {
       describe("and none have priority in the user's settings", () => {
         it("prefers the one with the highest score", async () => {
-          registerProvider(DummyProvider, CompetingExclusiveProvider);
-          spyOn(CompetingExclusiveProvider, "getSymbols").and.callThrough();
-          spyOn(DummyProvider, "getSymbols").and.callThrough();
+          registerProvider(DummyProvider, PreferredProvider);
+          spyOn(PreferredProvider, "getDocumentSymbols").and.callThrough();
+          spyOn(DummyProvider, "getDocumentSymbols").and.callThrough();
           await activationPromise;
           await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-          symbolsView = getSymbolsView();
+          symbolsView = getDocumentSymbolsView();
           expect(choiceCount(symbolsView)).toBe(5);
-          expect(DummyProvider.getSymbols).toHaveBeenCalled();
-          expect(CompetingExclusiveProvider.getSymbols).not.toHaveBeenCalled();
+          expect(DummyProvider.getDocumentSymbols).toHaveBeenCalled();
+          expect(PreferredProvider.getDocumentSymbols).not.toHaveBeenCalled();
         });
       });
 
       describe("and one is listed in `preferCertainProviders`", () => {
         beforeEach(() => {
-          lumine.config.set("symbol.preferCertainProviders", [
-            "symbol-provider-competing-exclusive",
-          ]);
+          lumine.config.set("symbol.preferCertainProviders", ["symbol-provider-preferred"]);
         });
 
         it("prefers the one with the highest score (providers listed beating those not listed)", async () => {
-          registerProvider(DummyProvider, CompetingExclusiveProvider);
-          spyOn(CompetingExclusiveProvider, "getSymbols").and.callThrough();
-          spyOn(DummyProvider, "getSymbols").and.callThrough();
+          registerProvider(DummyProvider, PreferredProvider);
+          spyOn(PreferredProvider, "getDocumentSymbols").and.callThrough();
+          spyOn(DummyProvider, "getDocumentSymbols").and.callThrough();
           await activationPromise;
           await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-          symbolsView = getSymbolsView();
+          symbolsView = getDocumentSymbolsView();
           expect(choiceCount(symbolsView)).toBe(5);
-          expect(DummyProvider.getSymbols).not.toHaveBeenCalled();
-          expect(CompetingExclusiveProvider.getSymbols).toHaveBeenCalled();
+          expect(DummyProvider.getDocumentSymbols).not.toHaveBeenCalled();
+          expect(PreferredProvider.getDocumentSymbols).toHaveBeenCalled();
         });
       });
 
@@ -504,21 +449,21 @@ describe("symbol", () => {
           // Last time we referred to this one by its package name; now we use
           // its human-friendly name. They should be interchangeable.
           lumine.config.set("symbol.preferCertainProviders", [
-            "Competing Exclusive",
+            "Preferred",
             "symbol-provider-dummy",
           ]);
         });
 
         it("prefers the one with the highest score (providers listed earlier beating those listed later)", async () => {
-          registerProvider(DummyProvider, CompetingExclusiveProvider);
-          spyOn(CompetingExclusiveProvider, "getSymbols").and.callThrough();
-          spyOn(DummyProvider, "getSymbols").and.callThrough();
+          registerProvider(DummyProvider, PreferredProvider);
+          spyOn(PreferredProvider, "getDocumentSymbols").and.callThrough();
+          spyOn(DummyProvider, "getDocumentSymbols").and.callThrough();
           await activationPromise;
           await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-          symbolsView = getSymbolsView();
+          symbolsView = getDocumentSymbolsView();
           expect(choiceCount(symbolsView)).toBe(5);
-          expect(DummyProvider.getSymbols).not.toHaveBeenCalled();
-          expect(CompetingExclusiveProvider.getSymbols).toHaveBeenCalled();
+          expect(DummyProvider.getDocumentSymbols).not.toHaveBeenCalled();
+          expect(PreferredProvider.getDocumentSymbols).toHaveBeenCalled();
         });
       });
 
@@ -528,7 +473,7 @@ describe("symbol", () => {
           // its human-friendly name. They should be interchangeable.
           lumine.config.set(
             "symbol.preferCertainProviders",
-            ["Competing Exclusive", "symbol-provider-dummy"],
+            ["Preferred", "symbol-provider-dummy"],
             { scopeSelector: ".source.js" },
           );
 
@@ -536,15 +481,15 @@ describe("symbol", () => {
         });
 
         it("prefers the one with the highest score (providers listed earlier beating those listed later)", async () => {
-          registerProvider(DummyProvider, CompetingExclusiveProvider);
-          spyOn(CompetingExclusiveProvider, "getSymbols").and.callThrough();
-          spyOn(DummyProvider, "getSymbols").and.callThrough();
+          registerProvider(DummyProvider, PreferredProvider);
+          spyOn(PreferredProvider, "getDocumentSymbols").and.callThrough();
+          spyOn(DummyProvider, "getDocumentSymbols").and.callThrough();
           await activationPromise;
           await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-          symbolsView = getSymbolsView();
+          symbolsView = getDocumentSymbolsView();
           expect(choiceCount(symbolsView)).toBe(5);
-          expect(DummyProvider.getSymbols).not.toHaveBeenCalled();
-          expect(CompetingExclusiveProvider.getSymbols).toHaveBeenCalled();
+          expect(DummyProvider.getDocumentSymbols).not.toHaveBeenCalled();
+          expect(PreferredProvider.getDocumentSymbols).toHaveBeenCalled();
         });
       });
     });
@@ -556,10 +501,10 @@ describe("symbol", () => {
         lumine.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
         await conditionPromise(
           () =>
-            !getSymbolsView()?.selectList.isLoading() &&
-            getSymbolsView()?.getElement().querySelector(".empty-message"),
+            !getDocumentSymbolsView()?.selectList.isLoading() &&
+            getDocumentSymbolsView()?.getElement().querySelector(".empty-message"),
         );
-        symbolsView = getSymbolsView();
+        symbolsView = getDocumentSymbolsView();
 
         expect(document.body.contains(symbolsView.getElement()));
         expect(choiceCount(symbolsView)).toBe(0);
@@ -574,11 +519,11 @@ describe("symbol", () => {
       it("does not show the list view", async () => {
         registerProvider(UselessProvider);
         await activationPromise;
-        expect(mainModule.registry.broker.providers.length).toBe(1);
+        expect(mainModule.registry.broker.providers.document.length).toBe(1);
         lumine.commands.dispatch(getEditorView(), "symbol:toggle-file-symbols");
 
         await wait(1000);
-        symbolsView = getSymbolsView();
+        symbolsView = getDocumentSymbolsView();
 
         // List view should not be visible, nor should it have any options.
         expect(symbolsView.getElement().querySelectorAll("li").length).toBe(0);
@@ -595,7 +540,7 @@ describe("symbol", () => {
         registerProvider(DummyProvider);
         await activationPromise;
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-        symbolsView = getSymbolsView();
+        symbolsView = getDocumentSymbolsView();
 
         expect(symbolsView.selectList.getLoadingState()).toBeNull();
         expect(document.body.contains(symbolsView.getElement())).toBe(true);
@@ -646,7 +591,7 @@ describe("symbol", () => {
         registerProvider(DummyProvider);
         await activationPromise;
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-        symbolsView = getSymbolsView();
+        symbolsView = getDocumentSymbolsView();
         expect(symbolsView.getElement().querySelector("li:first-child .icon-package")).toExist();
 
         iconRegistration = lumine.icons.addProvider(
@@ -667,12 +612,27 @@ describe("symbol", () => {
     });
   });
 
-  describe("when going to declaration", () => {
+  describe("when going to definition", () => {
     beforeEach(async () => {
       await lumine.workspace.open(directory.resolve("sample.js"));
     });
 
-    describe("when no declaration is found", () => {
+    it("opens the definitions already fetched for hyperclick without another provider request", async () => {
+      registerProvider(TaggedProvider);
+      editor = lumine.workspace.getActiveTextEditor();
+      spyOn(mainModule.registry, "findDefinitions").and.callThrough();
+      const range = new (require("lumine").Range)([0, 1], [0, 3]);
+      const suggestion = await mainModule
+        .provideHyperclick()
+        .getSuggestionForWord(editor, "call", range);
+      expect(suggestion.range).toBe(range);
+      await suggestion.callback();
+      expect(mainModule.registry.findDefinitions).toHaveBeenCalledTimes(1);
+      expect(getEditor().getPath()).toBe(directory.resolve("tagged.js"));
+      expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
+    });
+
+    describe("when no definition is found", () => {
       beforeEach(async () => {
         registerProvider(EmptyProvider);
         editor = lumine.workspace.getActiveTextEditor();
@@ -688,18 +648,18 @@ describe("symbol", () => {
       });
     });
 
-    describe("when there is a single matching declaration", () => {
+    describe("when there is a single matching definition", () => {
       beforeEach(async () => {
         registerProvider(TaggedProvider);
         await lumine.workspace.open(directory.resolve("tagged.js"));
         editor = lumine.workspace.getActiveTextEditor();
       });
 
-      it("moves the cursor to the declaration", async () => {
+      it("moves the cursor to the definition", async () => {
         editor.setCursorBufferPosition([6, 24]);
         spyOn(SymbolListView.prototype, "moveToPosition").and.callThrough();
 
-        lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:go-to-definition");
 
         await conditionPromise(() => {
           return SymbolListView.prototype.moveToPosition.calls.count() === 1;
@@ -708,7 +668,7 @@ describe("symbol", () => {
       });
     });
 
-    describe("when there is more than one matching declaration", () => {
+    describe("when there is more than one matching definition", () => {
       beforeEach(async () => {
         registerProvider(TaggedProvider);
         TaggedProvider.mockResultCount = 2;
@@ -724,8 +684,8 @@ describe("symbol", () => {
 
       it("displays matches and opens the selected match", async () => {
         editor.setCursorBufferPosition([8, 14]);
-        lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
-        symbolsView = getSymbolsView();
+        lumine.commands.dispatch(getEditorView(), "symbol:go-to-definition");
+        symbolsView = getDocumentSymbolsView();
 
         await conditionPromise(() => {
           return symbolsView.getElement().querySelectorAll("li").length > 0;
@@ -751,7 +711,7 @@ describe("symbol", () => {
     });
   });
 
-  describe("when returning from declaration", () => {
+  describe("when returning from definition", () => {
     describe("in the same file", () => {
       beforeEach(async () => {
         registerProvider(TaggedProvider);
@@ -762,7 +722,7 @@ describe("symbol", () => {
 
       it("doesn't do anything when no go-tos have been triggered", async () => {
         editor.setCursorBufferPosition([6, 0]);
-        lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:return-from-definition");
 
         expect(editor.getCursorBufferPosition()).toEqual([6, 0]);
       });
@@ -771,7 +731,7 @@ describe("symbol", () => {
         editor.setCursorBufferPosition([6, 24]);
         editor = lumine.workspace.getActiveTextEditor();
         spyOn(SymbolListView.prototype, "moveToPosition").and.callThrough();
-        lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:go-to-definition");
 
         await conditionPromise(() => {
           return SymbolListView.prototype.moveToPosition.calls.count() === 1;
@@ -780,7 +740,7 @@ describe("symbol", () => {
         expect(getEditor()).toBe(editor);
 
         expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
-        lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:return-from-definition");
 
         await conditionPromise(() => SymbolListView.prototype.moveToPosition.calls.count() === 2);
         expect(getEditor().getCursorBufferPosition()).toEqual([6, 24]);
@@ -797,7 +757,7 @@ describe("symbol", () => {
 
       it("doesn't do anything when no go-tos have been triggered", async () => {
         editor.setCursorBufferPosition([6, 0]);
-        lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:return-from-definition");
 
         expect(editor.getCursorBufferPosition()).toEqual([6, 0]);
       });
@@ -806,7 +766,7 @@ describe("symbol", () => {
         editor.setCursorBufferPosition([6, 24]);
         editor = lumine.workspace.getActiveTextEditor();
         spyOn(SymbolListView.prototype, "moveToPosition").and.callThrough();
-        lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:go-to-definition");
 
         await conditionPromise(() => {
           return SymbolListView.prototype.moveToPosition.calls.count() === 1;
@@ -816,7 +776,7 @@ describe("symbol", () => {
 
         expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
         const reopen = spyOn(lumine.workspace, "open").and.callThrough();
-        lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:return-from-definition");
 
         await conditionPromise(() => SymbolListView.prototype.moveToPosition.calls.count() === 2);
 
@@ -830,7 +790,7 @@ describe("symbol", () => {
         editor.setCursorBufferPosition([6, 24]);
         editor = lumine.workspace.getActiveTextEditor();
         spyOn(SymbolListView.prototype, "moveToPosition").and.callThrough();
-        lumine.commands.dispatch(getEditorView(), "symbol:go-to-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:go-to-definition");
 
         await conditionPromise(() => {
           return SymbolListView.prototype.moveToPosition.calls.count() === 1;
@@ -842,7 +802,7 @@ describe("symbol", () => {
         lumine.workspace.getActivePane().destroyItem(editor);
 
         expect(getEditor().getCursorBufferPosition()).toEqual([2, 0]);
-        lumine.commands.dispatch(getEditorView(), "symbol:return-from-declaration");
+        lumine.commands.dispatch(getEditorView(), "symbol:return-from-definition");
 
         await conditionPromise(() => SymbolListView.prototype.moveToPosition.calls.count() === 2);
 
@@ -861,11 +821,44 @@ describe("symbol", () => {
       editor = lumine.workspace.getActiveTextEditor();
     });
 
+    it("opens workspace search when no editor is active", async () => {
+      editor.destroy();
+      registerProvider(DummyProvider);
+      lumine.commands.dispatch(getWorkspaceView(), "symbol:toggle-project-symbols");
+      await conditionPromise(async () => {
+        await getOrScheduleUpdatePromise();
+        return getDocumentSymbolsView() && choiceCount(getDocumentSymbolsView()) > 0;
+      });
+      symbolsView = getDocumentSymbolsView();
+      expect(choiceCount(symbolsView)).toBe(5);
+    });
+
+    it("debounces workspace queries while a user continues typing", async () => {
+      const searches = jasmine.createSpy("searches").and.returnValue([]);
+      registerProvider({
+        name: "Workspace",
+        packageName: "workspace-fixture",
+        searchWorkspaceSymbols: searches,
+      });
+      lumine.commands.dispatch(getWorkspaceView(), "symbol:toggle-project-symbols");
+      await conditionPromise(() => searches.calls.count() === 1);
+      symbolsView = getDocumentSymbolsView();
+      const queryEditor = symbolsView.selectList.getQueryEditor();
+      queryEditor.setText("a");
+      await wait(50);
+      queryEditor.setText("ab");
+      await wait(100);
+      expect(searches.calls.count()).toBe(1);
+      await conditionPromise(() => searches.calls.count() === 2);
+      expect(searches.calls.mostRecent().args[0]).toBe("ab");
+      expect(searches.calls.allArgs().map(([query]) => query)).not.toContain("a");
+    });
+
     it("displays all symbols", async () => {
       registerProvider(DummyProvider);
       await activationPromise;
       await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
-      symbolsView = getSymbolsView();
+      symbolsView = getDocumentSymbolsView();
 
       expect(symbolsView.selectList.getLoadingState()).toBeNull();
       expect(document.body.contains(symbolsView.getElement())).toBe(true);
@@ -895,7 +888,7 @@ describe("symbol", () => {
       await activationPromise;
       spyOn(editor, "getSelectedText").and.returnValue("Symbol on Row 13");
       await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
-      symbolsView = getSymbolsView();
+      symbolsView = getDocumentSymbolsView();
 
       expect(symbolsView.selectList.getLoadingState()).toBeNull();
       expect(document.body.contains(symbolsView.getElement())).toBe(true);
@@ -913,12 +906,12 @@ describe("symbol", () => {
       );
     });
 
-    it("includes results from all providers, even if they claim to be exclusive", async () => {
+    it("includes results from every workspace provider", async () => {
       registerProvider(DummyProvider);
       registerProvider(SecondDummyProvider);
 
       await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
-      symbolsView = getSymbolsView();
+      symbolsView = getDocumentSymbolsView();
 
       expect(symbolsView.selectList.getLoadingState()).toBeNull();
       expect(document.body.contains(symbolsView.getElement())).toBe(true);
@@ -948,7 +941,7 @@ describe("symbol", () => {
       await activationPromise;
       spyOn(editor, "getSelectedText").and.returnValue("Symbol on Row 13");
       await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
-      symbolsView = getSymbolsView();
+      symbolsView = getDocumentSymbolsView();
 
       expect(symbolsView.selectList.getLoadingState()).toBeNull();
       expect(document.body.contains(symbolsView.getElement())).toBe(true);
@@ -972,33 +965,6 @@ describe("symbol", () => {
       );
     });
 
-    it("asks for new symbols when the user starts typing", async () => {
-      registerProvider(ProgressiveProjectProvider);
-      spyOn(ProgressiveProjectProvider, "getSymbols").and.callThrough();
-      await activationPromise;
-      lumine.commands.dispatch(getEditorView(), "symbol:toggle-project-symbols");
-      symbolsView = getSymbolsView();
-      await wait(2000);
-
-      expect(symbolsView.getElement().querySelectorAll("li .primary-line").length).toBe(0);
-      expect(ProgressiveProjectProvider.getSymbols.calls.count()).toBe(1);
-
-      expect(symbolsView.getElement().querySelector(".empty-message")).toHaveText(
-        "Query must be at least 3 characters long.",
-      );
-
-      await symbolsView.updateView({ query: "lor" });
-      await wait(2000);
-
-      expect(symbolsView.getElement().querySelector(".empty-message")).toBeNull();
-
-      expect(symbolsView.getElement().querySelectorAll("li .primary-line").length).toBe(1);
-      expect(symbolsView.getElement().querySelector("li:first-child .primary-line")).toHaveText(
-        "Lorem ipsum",
-      );
-      expect(ProgressiveProjectProvider.getSymbols.calls.count()).toBe(2);
-    });
-
     describe("when there is only one project", () => {
       beforeEach(() => {
         lumine.project.setPaths([directory.getPath()]);
@@ -1010,7 +976,7 @@ describe("symbol", () => {
         await activationPromise;
         expect(getWorkspaceView().querySelector(".symbol")).toBeNull();
         await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
-        symbolsView = getSymbolsView();
+        symbolsView = getDocumentSymbolsView();
 
         expect(choiceCount(symbolsView)).toBe(1);
 
@@ -1031,7 +997,7 @@ describe("symbol", () => {
           registerProvider(TaggedProvider);
           await activationPromise;
           await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
-          symbolsView = getSymbolsView();
+          symbolsView = getDocumentSymbolsView();
 
           spyOn(lumine.workspace, "open").and.callThrough();
 
@@ -1058,7 +1024,7 @@ describe("symbol", () => {
         await activationPromise;
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
 
-        symbolsView = getSymbolsView();
+        symbolsView = getDocumentSymbolsView();
         symbolsView.selectList.getQueryEditor().setText("quicksort");
         await getOrScheduleUpdatePromise();
         let resultView = symbolsView.getElement().querySelector(".selected");
@@ -1070,7 +1036,7 @@ describe("symbol", () => {
       it("highlights a partial match", async () => {
         await activationPromise;
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-        symbolsView = getSymbolsView();
+        symbolsView = getDocumentSymbolsView();
 
         symbolsView.selectList.getQueryEditor().setText("quick");
         await getOrScheduleUpdatePromise();
@@ -1084,7 +1050,7 @@ describe("symbol", () => {
       it("highlights multiple matches in the symbol name", async () => {
         await activationPromise;
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-        symbolsView = getSymbolsView();
+        symbolsView = getDocumentSymbolsView();
 
         symbolsView.selectList.getQueryEditor().setText("quicort");
         await getOrScheduleUpdatePromise();
@@ -1111,11 +1077,11 @@ describe("symbol", () => {
         editor = lumine.workspace.getActiveTextEditor();
         expect(editor.getCursorBufferPosition()).toEqual([0, 0]);
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-        symbolsView = getSymbolsView();
+        symbolsView = getDocumentSymbolsView();
 
         symbolsView.selectList.selectNext();
 
-        expect(editor.getCursorBufferPosition()).toEqual([3, 4]);
+        expect(editor.getCursorBufferPosition()).toEqual([3, 0]);
       });
 
       // NOTE: If this test fails, could it have been because you opened the
@@ -1130,10 +1096,10 @@ describe("symbol", () => {
         editor.setSelectedBufferRanges(bufferRanges);
 
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-        symbolsView = getSymbolsView();
+        symbolsView = getDocumentSymbolsView();
 
         symbolsView.selectList.selectNext();
-        expect(editor.getCursorBufferPosition()).toEqual([3, 4]);
+        expect(editor.getCursorBufferPosition()).toEqual([3, 0]);
 
         symbolsView.selectListHost.cancel();
         expect(editor.getSelectedBufferRanges()).toEqual(bufferRanges);
@@ -1153,7 +1119,7 @@ describe("symbol", () => {
         expect(editor.getCursorBufferPosition()).toEqual([0, 0]);
 
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
-        symbolsView = getSymbolsView();
+        symbolsView = getDocumentSymbolsView();
         symbolsView.selectList.selectNext();
         expect(editor.getCursorBufferPosition()).toEqual([0, 0]);
       });

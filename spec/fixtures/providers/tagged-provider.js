@@ -1,44 +1,28 @@
-const { Point } = require('lumine');
-const path = require('path');
-
-function last (arr) {
-  return arr[arr.length - 1];
-}
-
-const MOCK_FILE_NAME = 'tagged.js';
-const MOCK_RESULT_COUNT = 1;
-
+const { Point } = require("lumine");
 module.exports = {
-  // If you change these values, you MUST remember to call `reset` in an
-  // `afterEach` block!
-  mockResultCount: MOCK_RESULT_COUNT,
-  mockFileName: MOCK_FILE_NAME,
-
-  reset () {
-    this.mockFileName = MOCK_FILE_NAME;
-    this.mockResultCount = MOCK_RESULT_COUNT;
+  packageName: "symbol-provider-tagged",
+  name: "Tagged",
+  mockResultCount: 1,
+  mockFileName: "tagged.js",
+  reset() {
+    this.mockResultCount = 1;
+    this.mockFileName = "tagged.js";
   },
-
-  packageName: 'symbol-provider-tagged',
-  name: 'Tagged',
-  isExclusive: true,
-  canProvideSymbols (meta) {
-    if (!meta.type === 'project') return false;
-    return true;
+  searchWorkspaceSymbols(_query, { paths }) {
+    return Array.from({ length: this.mockResultCount }, (_, index) => ({
+      directory: paths.at(-1),
+      file: this.mockFileName,
+      position: new Point(2 + index, 10),
+      name: "callMeMaybe",
+    }));
   },
-  getSymbols (meta) {
-    let root = last(lumine.project.getPaths());
-    let { editor, type } = meta;
-    let results = [];
-    if (!type.includes('project')) return [];
-    for (let i = 0; i < this.mockResultCount; i++) {
-      results.push({
-        directory: root,
-        file: this.mockFileName,
-        position: new Point(2 + i, 10),
-        name: 'callMeMaybe'
-      });
-    }
-    return results;
-  }
+  canProvideDefinitions: () => true,
+  getDefinitions() {
+    return Array.from({ length: this.mockResultCount }, (_, index) => ({
+      directory: lumine.project.getPaths().at(-1),
+      file: this.mockFileName,
+      position: new Point(2 + index, 0),
+      name: "callMeMaybe",
+    }));
+  },
 };

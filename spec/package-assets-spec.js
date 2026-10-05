@@ -5,10 +5,7 @@ const root = path.join(__dirname, "..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
 const exists = (rel) => fs.existsSync(path.join(root, rel));
 
-// Guards for the symbols-view -> symbol hub conversion. The command prefix,
-// config namespace, CSS class root, and package name all move to `symbol`;
-// the consumed `symbol.provider` service stays, and the hub now provides
-// `symbol.registry`.
+// Keep the split provider roles and their public documentation in sync.
 describe("symbol package assets", () => {
   it("ships the renamed keymap and stylesheet", () => {
     expect(exists("keymaps/main.json")).toBe(true);
@@ -44,14 +41,24 @@ describe("symbol package assets", () => {
     expect(contribution.tips.join("")).toContain("symbol:toggle-file-symbols");
   });
 
-  it("provides symbol.registry and hyperclick.provider, and consumes symbol.provider", () => {
+  it("provides the registry and consumes separate document, workspace and definition roles", () => {
     const pkg = JSON.parse(read("package.json"));
     expect(pkg.providedServices["symbol.registry"].versions["1.1.0"]).toBe("provideSymbolRegistry");
     expect(pkg.providedServices["hyperclick.provider"].versions["1.0.0"]).toBe("provideHyperclick");
     expect(pkg.providedServices["background-tips.provider"].versions["1.0.0"]).toBe(
       "provideBackgroundTips",
     );
-    expect(pkg.consumedServices["symbol.provider"].versions["^1.0.0"]).toBe("consumeSymbol");
+    for (const [role, method] of [
+      ["document", "consumeDocumentSymbolProvider"],
+      ["workspace", "consumeWorkspaceSymbolProvider"],
+      ["definition", "consumeDefinitionProvider"],
+    ])
+      expect(pkg.consumedServices[`symbol.${role}-provider`].versions["^1.0.0"]).toBe(method);
+    expect(Object.keys(pkg.consumedServices)).toEqual([
+      "symbol.document-provider",
+      "symbol.workspace-provider",
+      "symbol.definition-provider",
+    ]);
   });
 
   it("defines the config schema under the symbol namespace without order keys", () => {
@@ -87,7 +94,9 @@ describe("symbol package assets", () => {
   });
 
   it("ships a contract document for every owned service", () => {
-    expect(exists("docs/symbol.provider.md")).toBe(true);
+    expect(exists("docs/symbol.document-provider.md")).toBe(true);
+    expect(exists("docs/symbol.workspace-provider.md")).toBe(true);
+    expect(exists("docs/symbol.definition-provider.md")).toBe(true);
     expect(exists("docs/symbol.registry.md")).toBe(true);
     // `hyperclick.provider` is owned by its consumer, the hyperclick package.
     expect(exists("docs/hyperclick.provider.md")).toBe(false);

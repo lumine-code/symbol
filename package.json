@@ -108,10 +108,19 @@
     }
   },
   "consumedServices": {
-    "symbol.provider": {
-      "description": "Allows external sources to suggest symbols for a given file or project.",
+    "symbol.document-provider": {
       "versions": {
-        "^1.0.0": "consumeSymbol"
+        "^1.0.0": "consumeDocumentSymbolProvider"
+      }
+    },
+    "symbol.workspace-provider": {
+      "versions": {
+        "^1.0.0": "consumeWorkspaceSymbolProvider"
+      }
+    },
+    "symbol.definition-provider": {
+      "versions": {
+        "^1.0.0": "consumeDefinitionProvider"
       }
     }
   },
