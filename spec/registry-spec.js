@@ -434,7 +434,7 @@ describe("symbol registry", () => {
       makeProvider({
         getDocumentSymbols: () => [
           // The spellings a provider that does not share this window's
-          // `Point` class sends — ide-client's contract uses arrays.
+          // `Point` class sends — ide's contract uses arrays.
           { name: "array", position: [2, 4] },
           { name: "object", position: { row: 1, column: 0 } },
           {

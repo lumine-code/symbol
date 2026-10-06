@@ -13,7 +13,7 @@ const languageServer = {
   id: "ide-sofistik",
   name: "SOFiSTiK Language Server",
   shortLabel: "LS",
-  packageName: "ide-client",
+  packageName: "ide",
   score: 1,
   state: "ready",
 };
@@ -365,7 +365,7 @@ describe("document symbol source selector", () => {
     expect(element.querySelector('[data-source-id="symbol:auto"] .secondary-line')).toBeNull();
     expect(element.querySelector(".select-list-info, .info-message")).toBeNull();
     expect(listView.selectList.getInfoMessage()).toBeNull();
-    expect(element.textContent).not.toContain("ide-client");
+    expect(element.textContent).not.toMatch(/\bide\b/);
   });
 
   it("keeps a short source list in provider order while marking the effective Auto source", async () => {
