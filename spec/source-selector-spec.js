@@ -125,7 +125,7 @@ describe("document symbol source selector", () => {
     expect(registry.getFileSymbols).toHaveBeenCalledWith(editor);
     expect(await registry.getFileSymbols(editor)).toEqual([]);
     expect(statusView.button.textContent).toBe("TS");
-    expect(statusView.tooltipContent.textContent).toBe("This file uses Tree-sitter symbols.");
+    expect(statusView.tooltipContent.textContent).toBe("This file uses Tree-sitter symbols");
     expect(registry.getDocumentSourceState(editor).mode).toBe("auto");
   });
 
@@ -149,7 +149,7 @@ describe("document symbol source selector", () => {
     await render();
     expect(statusView.button.textContent).toBe("LS");
     expect(statusView.tooltipContent.textContent).toBe(
-      "This file uses SOFiSTiK Language Server symbols.",
+      "This file uses SOFiSTiK Language Server symbols",
     );
     expect(registry.getDocumentSourceState(editor).mode).toBe("manual");
     expect(registry.getDocumentSourceState(editor).scope).toBe("file");
@@ -162,8 +162,8 @@ describe("document symbol source selector", () => {
   it("distinguishes pending, unavailable and failed source states", async () => {
     statusView = new SourceStatusView(statusBar, registry, () => {});
     for (const [status, label, text] of [
-      ["loading", "LS", "This file uses SOFiSTiK Language Server symbols."],
-      ["starting", "LS", "This file uses SOFiSTiK Language Server symbols."],
+      ["loading", "LS", "This file uses SOFiSTiK Language Server symbols"],
+      ["starting", "LS", "This file uses SOFiSTiK Language Server symbols"],
       ["unavailable", "—", "unavailable"],
       ["error", "—", "Could not load"],
     ]) {
@@ -198,7 +198,7 @@ describe("document symbol source selector", () => {
       await render();
       expect(statusView.button.textContent).toBe(label);
       expect(statusView.element.style.display).toBe("");
-      expect(statusView.tooltipContent.textContent).toBe(`This file uses ${name} symbols.`);
+      expect(statusView.tooltipContent.textContent).toBe(`This file uses ${name} symbols`);
     }
     registry.setState(editor, {
       mode: "auto",
@@ -209,7 +209,7 @@ describe("document symbol source selector", () => {
     await render();
     expect(statusView.button.textContent).toBe("LS");
     expect(statusView.tooltipContent.textContent).toBe(
-      "This file uses SOFiSTiK Language Server symbols.",
+      "This file uses SOFiSTiK Language Server symbols",
     );
   });
 
@@ -228,7 +228,7 @@ describe("document symbol source selector", () => {
     await render();
     expect(statusView.element.style.display).toBe("");
     expect(statusView.button.textContent).toBe("TS");
-    expect(statusView.tooltipContent.textContent).toBe("This file uses Tree-sitter symbols.");
+    expect(statusView.tooltipContent.textContent).toBe("This file uses Tree-sitter symbols");
     registry.setState(editor, {
       mode: "auto",
       sourceId: null,
@@ -238,7 +238,7 @@ describe("document symbol source selector", () => {
     await render();
     expect(statusView.button.textContent).toBe("LS");
     expect(statusView.tooltipContent.textContent).toBe(
-      "This file uses SOFiSTiK Language Server symbols.",
+      "This file uses SOFiSTiK Language Server symbols",
     );
   });
 
@@ -567,7 +567,7 @@ describe("document symbol source selector", () => {
     await listView.toggle(editor);
     await render();
     expect(statusView.tooltipContent.textContent).toBe(
-      "This file uses SOFiSTiK Language Server symbols.",
+      "This file uses SOFiSTiK Language Server symbols",
     );
     expect(registry.getDocumentSourceState(editor).scope).toBe("grammar");
     expect(
@@ -775,7 +775,7 @@ describe("document symbol source selector integration", () => {
     expect(await service.getFileSymbols(editor)).toEqual([]);
     const tile = document.querySelector(".symbol-source-status .symbol-source-button");
     expect(tile.textContent).toBe("LS");
-    expect(tile.getAttribute("aria-label")).toBe("This file uses UI Test Language Server symbols.");
+    expect(tile.getAttribute("aria-label")).toBe("This file uses UI Test Language Server symbols");
     expect(service.getDocumentSourceState(editor).mode).toBe("auto");
     let list = await openListFromTile();
     await list.selectItemById("symbol-tree-sitter");
@@ -794,7 +794,7 @@ describe("document symbol source selector integration", () => {
     await readySource(sourceId);
     expect(tile.textContent).toBe("LS");
     expect(await service.getFileSymbols(editor)).toEqual([]);
-    expect(tile.getAttribute("aria-label")).toBe("This file uses UI Test Language Server symbols.");
+    expect(tile.getAttribute("aria-label")).toBe("This file uses UI Test Language Server symbols");
     expect(service.getDocumentSourceState(editor).mode).toBe("manual");
     expect(service.getDocumentSourceState(editor).scope).toBe("file");
 
@@ -804,7 +804,7 @@ describe("document symbol source selector integration", () => {
     await readySource(sourceId);
     expect(service.getDocumentSourceState(editor).mode).toBe("auto");
     expect(tile.textContent).toBe("LS");
-    expect(tile.getAttribute("aria-label")).toBe("This file uses UI Test Language Server symbols.");
+    expect(tile.getAttribute("aria-label")).toBe("This file uses UI Test Language Server symbols");
     expect(service.getDocumentSourceState(editor).scope).toBe("file");
   });
 
@@ -865,7 +865,7 @@ describe("document symbol source selector integration", () => {
     expect(previousTile.isConnected).toBe(false);
     expect(tile.textContent).toBe("TS");
     expect(tile.querySelector("button").getAttribute("aria-label")).toBe(
-      "This file uses Tree-sitter symbols.",
+      "This file uses Tree-sitter symbols",
     );
     const flat = await service.getFileSymbols(editor);
     const tree = await service.getFileSymbolTree(editor);
@@ -980,7 +980,7 @@ describe("document symbol source selector integration", () => {
         expect(tile.style.display).toBe("");
         expect(tile.textContent).toBe("TS");
         expect(tile.querySelector("button").getAttribute("aria-label")).toBe(
-          "This file uses Tree-sitter symbols.",
+          "This file uses Tree-sitter symbols",
         );
         if (failure === "timeout") {
           expect(languageProvider.getDocumentSymbols.calls.first().args[1].signal.aborted).toBe(
