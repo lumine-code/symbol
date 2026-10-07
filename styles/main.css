@@ -2,60 +2,67 @@
  *
  * We need colors that vary from one another, but they need to harmonize with
  * the user's chosen UI theme. So we just move around the color wheel in
- * 22.5-degree (360 / 16) steps, starting with the UI theme's own badge
- * background color, and varying the hue while keeping the saturation and
+ * 22.5-degree (360 / 16) steps, starting with the UI theme's category
+ * color, and varying the hue while keeping the saturation and
  * lightness constant.
  *
  * (Expanded from the Less `.badge-variant(@char, @num)` mixin loop, where
  * each variant was `spin(@background-color-info, (360 / 16) * @num)`.)
  */
 .symbol-badge-variant-0 {
-  background-color: hsl(from var(--background-color-info) h s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) h s l);
 }
 .symbol-badge-variant-1 {
-  background-color: hsl(from var(--background-color-info) calc(h + 22.5) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 22.5) s l);
 }
 .symbol-badge-variant-2 {
-  background-color: hsl(from var(--background-color-info) calc(h + 45) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 45) s l);
 }
 .symbol-badge-variant-3 {
-  background-color: hsl(from var(--background-color-info) calc(h + 67.5) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 67.5) s l);
 }
 .symbol-badge-variant-4 {
-  background-color: hsl(from var(--background-color-info) calc(h + 90) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 90) s l);
 }
 .symbol-badge-variant-5 {
-  background-color: hsl(from var(--background-color-info) calc(h + 112.5) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 112.5) s l);
 }
 .symbol-badge-variant-6 {
-  background-color: hsl(from var(--background-color-info) calc(h + 135) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 135) s l);
 }
 .symbol-badge-variant-7 {
-  background-color: hsl(from var(--background-color-info) calc(h + 157.5) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 157.5) s l);
 }
 .symbol-badge-variant-8 {
-  background-color: hsl(from var(--background-color-info) calc(h + 180) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 180) s l);
 }
 .symbol-badge-variant-9 {
-  background-color: hsl(from var(--background-color-info) calc(h + 202.5) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 202.5) s l);
 }
 .symbol-badge-variant-a {
-  background-color: hsl(from var(--background-color-info) calc(h + 225) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 225) s l);
 }
 .symbol-badge-variant-b {
-  background-color: hsl(from var(--background-color-info) calc(h + 247.5) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 247.5) s l);
 }
 .symbol-badge-variant-c {
-  background-color: hsl(from var(--background-color-info) calc(h + 270) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 270) s l);
 }
 .symbol-badge-variant-d {
-  background-color: hsl(from var(--background-color-info) calc(h + 292.5) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 292.5) s l);
 }
 .symbol-badge-variant-e {
-  background-color: hsl(from var(--background-color-info) calc(h + 315) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 315) s l);
 }
 .symbol-badge-variant-f {
-  background-color: hsl(from var(--background-color-info) calc(h + 337.5) s l) !important;
+  --symbol-badge-background-color: hsl(from var(--ui-site-color-2) calc(h + 337.5) s l);
+}
+
+.badge-symbol-tag[class*="symbol-badge-variant-"] {
+  background-color: var(--symbol-badge-background-color) !important;
+  color: lch(
+    from var(--symbol-badge-background-color) calc((49.44 - l) * infinity) 0 0 / 1
+  ) !important;
 }
 
 lumine-panel.modal.symbol {
