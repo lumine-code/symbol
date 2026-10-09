@@ -25,7 +25,8 @@
   ],
   "types": "./lib/main.d.ts",
   "specPackages": [
-    "symbol-tree-sitter"
+    "symbol-tree-sitter",
+    "status-bar"
   ],
   "engines": {
     "lumine": "^1.0.0",
