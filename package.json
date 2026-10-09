@@ -148,12 +148,12 @@
     }
   },
   "dependencies": {
-    "@lumine-code/fs-plus": "github:lumine-code/fs-plus#364c62d0b010ad02388adbe099c3a443a8def84c",
+    "@lumine-code/fs-plus": "github:lumine-code/fs-plus#05cfd3c28bc25c059de9f76823ba5d168f5d8cd8",
     "murmurhash-js": "^1.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@lumine-code/fs-temp": "github:lumine-code/fs-temp#ef0edb8764a963d1bc4103ec7038543309e544e4",
+    "@lumine-code/fs-temp": "github:lumine-code/fs-temp#855fe240d3d00edfc48d1021055f6dda2b47556a",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-n": "^18.4.1",
