@@ -666,6 +666,11 @@ describe("symbol", () => {
       it("moves the cursor to the definition", async () => {
         editor.setCursorBufferPosition([6, 24]);
         spyOn(SymbolListView.prototype, "moveToPosition").and.callThrough();
+        lumine.config.set("editor.scrollZone", [20, 75]);
+        const scrollRequests = [];
+        const subscription = editor.onDidRequestAutoscroll((request) =>
+          scrollRequests.push(request),
+        );
 
         lumine.commands.dispatch(getEditorView(), "symbol:go-to-definition");
 
@@ -673,6 +678,8 @@ describe("symbol", () => {
           return SymbolListView.prototype.moveToPosition.calls.count() === 1;
         });
         expect(editor.getCursorBufferPosition()).toEqual([2, 0]);
+        expect(scrollRequests.map((request) => request.options.mode)).toEqual([[20, 75]]);
+        subscription.dispose();
       });
     });
 
