@@ -2,6 +2,8 @@
 
 Jump to a function, method, or symbol in the current editor or across the project.
 
+File-symbol and definition commands use the editor that received the command, including an inactive split. Definition return history records that same source editor.
+
 Fork of [pulsar-edit/pulsar](https://github.com/pulsar-edit/pulsar) (`packages/symbols-view`).
 
 The hub of the symbol domain: it gathers symbols from every separate document, workspace and definition providers, caches them per editor, and serves them — to its own pickers and, through the `symbol.registry` service, to any other package that wants them.
