@@ -1,3 +1,4 @@
+const windowService = require("./helpers/window-service");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -155,15 +156,14 @@ describe("Symbol service and picker lifetimes", () => {
     lumine.config.set("symbol.showStatusBarItem", true);
     const statusMain = (await lumine.packages.activatePackage("status-bar")).mainModule;
     const bar = statusMain.statusBar;
-    // Core's wrapper is a distinct payload from this raw bar, so preserve its
-    // already live selector and measure only the repeated exact bar payload.
+    // The scoped v2 service and manual edges share this exact bar identity.
     const baseline = bar.element.querySelectorAll(".symbol-source-status").length;
-    const first = lumine.packages.serviceHub.provide("status-bar", "1.0.0", bar);
-    const second = lumine.packages.serviceHub.provide("status-bar", "1.0.0", bar);
+    const first = lumine.packages.serviceHub.provide("status-bar", "2.0.0", windowService(bar));
+    const second = lumine.packages.serviceHub.provide("status-bar", "2.0.0", windowService(bar));
     leases.push(first, second);
-    expect(bar.element.querySelectorAll(".symbol-source-status").length).toBe(baseline + 1);
+    expect(bar.element.querySelectorAll(".symbol-source-status").length).toBe(baseline);
     first.dispose();
-    expect(bar.element.querySelectorAll(".symbol-source-status").length).toBe(baseline + 1);
+    expect(bar.element.querySelectorAll(".symbol-source-status").length).toBe(baseline);
   });
 
   it("keeps an initializing status selector alive during reentrant duplicate withdrawal", async () => {
@@ -177,13 +177,13 @@ describe("Symbol service and picker lifetimes", () => {
         const tile = bar.addLeftTile(options);
         if (!reentered) {
           reentered = true;
-          main.consumeStatusBar(api).dispose();
+          main.consumeStatusBar(windowService(api)).dispose();
         }
         return tile;
       },
       addRightTile: (options) => bar.addRightTile(options),
     };
-    const lease = main.consumeStatusBar(api);
+    const lease = main.consumeStatusBar(windowService(api));
     expect(reentered).toBe(true);
     expect(bar.element.querySelectorAll(".symbol-source-status").length).toBe(baseline + 1);
     lease.dispose();
@@ -208,7 +208,7 @@ describe("Symbol service and picker lifetimes", () => {
       },
       addRightTile: (options) => bar.addRightTile(options),
     };
-    lease = lumine.packages.serviceHub.provide("status-bar", "1.0.0", api);
+    lease = lumine.packages.serviceHub.provide("status-bar", "2.0.0", windowService(api));
     leases.push(lease);
     const view = [...main.sourceStatusViews].find((view) => view.statusBar === api);
     lumine.config.set("symbol.showStatusBarItem", false);
@@ -239,7 +239,7 @@ describe("Symbol service and picker lifetimes", () => {
       },
       addRightTile: (options) => bar.addRightTile(options),
     };
-    const lease = lumine.packages.serviceHub.provide("status-bar", "1.0.0", api);
+    const lease = lumine.packages.serviceHub.provide("status-bar", "2.0.0", windowService(api));
     leases.push(lease);
     const view = [...main.sourceStatusViews].find((view) => view.statusBar === api);
     lumine.config.set("symbol.showStatusBarItem", false);

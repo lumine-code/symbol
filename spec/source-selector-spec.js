@@ -87,7 +87,10 @@ describe("document symbol source selector", () => {
     lumine.config.set("grammar-selector.showOnRightSideOfStatusBar", true);
     await lumine.packages.activatePackage("status-bar");
     await lumine.packages.activatePackage("grammar-selector");
-    statusBar = lumine.packages.getActivePackage("status-bar").mainModule.provideStatusBar();
+    statusBar = lumine.packages
+      .getActivePackage("status-bar")
+      .mainModule.provideStatusBar()
+      .forWindow(lumine.workspace.getMainWindow());
     editor = await lumine.workspace.open();
     registry = registryStub();
     spyOn(registry, "getFileSymbols").and.callThrough();
