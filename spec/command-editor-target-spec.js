@@ -24,7 +24,7 @@ describe("Symbol command editor targets", () => {
     jasmine.attachToDOM(lumine.workspace.getElement());
     first = await lumine.workspace.open(path.join(scratch, "first.txt"));
     const pane = lumine.workspace.paneForItem(first);
-    pane.splitRight({ copyActiveItem: false });
+    pane.splitRight();
     second = await lumine.workspace.open(path.join(scratch, "second.txt"));
     pane.activate();
     main = (await lumine.packages.activatePackage("symbol")).mainModule;
