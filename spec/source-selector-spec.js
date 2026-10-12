@@ -253,7 +253,7 @@ describe("document symbol source selector", () => {
     });
     const item = document.createElement("div");
     item.getTitle = () => "Notebook";
-    item.isSingleton = () => true;
+    item.canCopy = () => false;
     item.getActiveEmbeddedTextEditor = () => embedded;
     item.onDidChangeActiveTextEditors = () => ({ dispose() {} });
     const pane = lumine.workspace.getCenter().getActivePane();
@@ -266,7 +266,7 @@ describe("document symbol source selector", () => {
       expect(registry.getFileSymbols).toHaveBeenCalledWith(embedded);
       const noEditor = document.createElement("div");
       noEditor.getTitle = () => "Preview";
-      noEditor.isSingleton = () => true;
+      noEditor.canCopy = () => false;
       pane.activateItem(noEditor);
       await render();
       expect(statusView.element.style.display).toBe("none");
