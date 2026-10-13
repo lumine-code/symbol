@@ -5,19 +5,27 @@
       "submenu": [
         {
           "label": "Go to File Symbol…",
-          "command": "symbol:toggle-file-symbols"
+          "command": "symbol:toggle-file-symbols",
+          "group": "symbols",
+          "order": 10
         },
         {
           "label": "Go to Project Symbol…",
-          "command": "symbol:toggle-project-symbols"
+          "command": "symbol:toggle-project-symbols",
+          "group": "symbols",
+          "order": 20
         },
         {
           "label": "Go to Definition",
-          "command": "symbol:go-to-definition"
+          "command": "symbol:go-to-definition",
+          "group": "symbols",
+          "order": 30
         },
         {
           "label": "Return from Definition",
-          "command": "symbol:return-from-definition"
+          "command": "symbol:return-from-definition",
+          "group": "symbols",
+          "order": 40
         }
       ]
     },
