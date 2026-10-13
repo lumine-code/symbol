@@ -47,4 +47,31 @@ describe("symbol source status action menu", () => {
     lease.dispose();
     expect(lumine.contextMenu.templateForElement(view.element)).toEqual([]);
   });
+  it("shows a real custom source-picker binding despite its context-only detail", async () => {
+    const keys = lumine.keymaps.add("symbol-source-status-shortcut-spec", {
+      'lumine-text-editor[data-menu-owner="source"]': {
+        "ctrl-alt-1": "symbol:select-document-source",
+      },
+    });
+    editor.getElement().setAttribute("data-menu-owner", "source");
+    try {
+      const menu = lumine.contextMenu.templateForElement(view.element);
+      const label = process.platform === "darwin" ? "⌃⌥1" : "Ctrl+Alt+1";
+      expect(menu[0].commandDetail.editor).toBe(editor);
+      expect(menu[0].keyBindingLabel).toBe(label);
+      const popup = lumine.contextMenu.show(view.element, menu);
+      try {
+        expect(popup.element.querySelector(".menu-item-keystroke").textContent).toBe(label);
+      } finally {
+        popup.close();
+      }
+      await lumine.workspace.open({
+        getTitle: () => "Preview",
+        element: document.createElement("div"),
+      });
+      expect(lumine.contextMenu.templateForElement(view.element)[0].keyBindingLabel).toBe("");
+    } finally {
+      keys.dispose();
+    }
+  });
 });
