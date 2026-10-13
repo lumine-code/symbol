@@ -1,4 +1,5 @@
 const path = require("path");
+const { createRequire } = require("node:module");
 const fs = require("@lumine-code/fs-plus");
 const temp = require("@lumine-code/fs-temp");
 const { Icon } = require("lumine");
@@ -117,9 +118,11 @@ describe("symbol", () => {
     lumine.config.set("symbol.showIcons", false);
 
     activationPromise = lumine.packages.activatePackage("symbol");
-    await activationPromise.then(() => {
-      mainModule = lumine.packages.getActivePackage("symbol").mainModule;
-      SymbolListView = require("../lib/symbol-list-view");
+    await activationPromise.then((pack) => {
+      mainModule = pack.mainModule;
+      SymbolListView = createRequire(path.join(pack.path, "package.json"))(
+        "./lib/symbol-list-view",
+      );
     });
     await lumine.packages.activatePackage("language-javascript");
     jasmine.attachToDOM(getWorkspaceView());
