@@ -1,0 +1,17 @@
+{
+  "title": "symbol",
+  "description": "Browse the functions and symbols of a JavaScript file.",
+  "recordedOn": "2026-10-13",
+  "sourceRevision": "45fc7a5b10740243c799b9a786228e6cb16d4137",
+  "mode": "normal",
+  "fontSettings": "default",
+  "themeSourceRevision": "6564a9e21899b5541e9c8f8006f9be6d6d72e6ad",
+  "images": [
+    {
+      "file": "demo.png",
+      "label": "Browse the functions and symbols of a JavaScript file.",
+      "width": 1100,
+      "height": 730
+    }
+  ]
+}

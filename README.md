@@ -19,6 +19,8 @@ The hub of the symbol domain: it gathers symbols from every separate document, w
 - **Shared registry**: one fetch per editor serves both flat symbol lists and hierarchical trees through the `symbol.registry` service.
 - **Hyperclick support**: follow a symbol to its definition with a click.
 
+![Browse the functions and symbols of a JavaScript file.](.github/demo.png)
+
 ## Installation
 
 To install `symbol` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/symbol`.
