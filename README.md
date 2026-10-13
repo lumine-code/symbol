@@ -44,6 +44,8 @@ Commands available in `.symbol-source-selector`:
 
 ## Usage
 
+Left click the source status item to choose its symbol source. Its context menu offers the same selector and the active-provider report, preserving the editor and window shown by the item.
+
 Install [symbol-tree-sitter](https://github.com/lumine-code/symbol-tree-sitter#readme) for symbols from the current buffer, including unsaved changes. A supporting language backend takes precedence in Auto detect.
 
 The status item beside the grammar selector shows the document source, including a successful empty result. Its tooltip names the source. In the selector, Auto detect has a checkmark and its effective source has an icon for automatic selection. Short lists keep their natural provider order. When the list scrolls, the current source appears directly below Auto detect, followed by a separator before the remaining sources. A manual choice has one checkmark. Auto detect tries eligible sources in preference order and falls back after an unavailable, failed or timed-out source. The selector lists language servers only when they support document symbols, while Tree-sitter remains available even when the grammar has no tags. A manual choice uses exactly that source and reports its failure; an unavailable manual source remains visible and disabled. File choices are restored with the project's window state, including project switches in the same window, and take precedence over grammar settings; saving a grammar choice removes this file's override while preserving overrides belonging to other files. Outline, breadcrumbs and the file-symbol picker share the selected source and cache.
