@@ -29,9 +29,7 @@ Commands available in `lumine-workspace`:
 
 - `symbol:toggle-project-symbols`: search symbols from active language backends,
 - `symbol:select-document-source`: choose a source for this file or its grammar,
-- `symbol:show-active-providers`: list the symbol providers currently available.
-
-Commands available in `lumine-text-editor:not([mini])`:
+- `symbol:show-active-providers`: list the symbol providers currently available,
 
 - `symbol:toggle-file-symbols`: browse the symbols in the active editor,
 - `symbol:go-to-definition`: jump to the definition of the symbol under the cursor,

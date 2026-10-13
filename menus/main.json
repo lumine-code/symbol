@@ -1,0 +1,59 @@
+{
+  "menu": [
+    {
+      "label": "Search",
+      "submenu": [
+        {
+          "label": "Go to File Symbol…",
+          "command": "symbol:toggle-file-symbols"
+        },
+        {
+          "label": "Go to Project Symbol…",
+          "command": "symbol:toggle-project-symbols"
+        },
+        {
+          "label": "Go to Definition",
+          "command": "symbol:go-to-definition"
+        },
+        {
+          "label": "Return from Definition",
+          "command": "symbol:return-from-definition"
+        }
+      ]
+    },
+    {
+      "label": "Packages",
+      "submenu": [
+        {
+          "label": "Symbol",
+          "submenu": [
+            {
+              "label": "Go to File Symbol…",
+              "command": "symbol:toggle-file-symbols"
+            },
+            {
+              "label": "Go to Project Symbol…",
+              "command": "symbol:toggle-project-symbols"
+            },
+            {
+              "label": "Go to Definition",
+              "command": "symbol:go-to-definition"
+            },
+            {
+              "label": "Return from Definition",
+              "command": "symbol:return-from-definition"
+            },
+            {
+              "label": "Select Document Source…",
+              "command": "symbol:select-document-source"
+            },
+            {
+              "label": "Show Active Providers",
+              "command": "symbol:show-active-providers"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
