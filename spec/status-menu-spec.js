@@ -35,6 +35,7 @@ describe("symbol source status action menu", () => {
       "symbol:show-active-providers",
     ]);
     expect(items[0].commandDetail.editor).toBe(editor);
+    expect(items[0].mouseBindingLabel).toBe("LMB");
     await lumine.workspace.open();
     const show = spyOn(main, "showDocumentSourceSelector");
     await lumine.commands.dispatch(view.element, items[0].command, items[0].commandDetail);

@@ -128,7 +128,7 @@ describe("document symbol source selector", () => {
     expect(registry.getFileSymbols).toHaveBeenCalledWith(editor);
     expect(await registry.getFileSymbols(editor)).toEqual([]);
     expect(statusView.button.textContent).toBe("TS");
-    expect(statusView.tooltipContent.textContent).toBe("This file uses Tree-sitter symbols");
+    expect(statusView.button.getAttribute("aria-label")).toBe("This file uses Tree-sitter symbols");
     expect(registry.getDocumentSourceState(editor).mode).toBe("auto");
   });
 
@@ -151,13 +151,13 @@ describe("document symbol source selector", () => {
     registry.setDocumentSource(editor, languageServer.id);
     await render();
     expect(statusView.button.textContent).toBe("LS");
-    expect(statusView.tooltipContent.textContent).toBe(
+    expect(statusView.button.getAttribute("aria-label")).toBe(
       "This file uses SOFiSTiK Language Server symbols",
     );
     expect(registry.getDocumentSourceState(editor).mode).toBe("manual");
     expect(registry.getDocumentSourceState(editor).scope).toBe("file");
     expect(statusView.button.getAttribute("aria-label")).toBe(
-      statusView.tooltipContent.textContent,
+      statusView.button.getAttribute("aria-label"),
     );
     expect(statusView.button.getAttribute("aria-haspopup")).toBe("dialog");
   });
@@ -179,11 +179,11 @@ describe("document symbol source selector", () => {
       });
       await render();
       expect(statusView.button.textContent).toBe(label);
-      expect(statusView.tooltipContent.textContent).toContain(text);
+      expect(statusView.button.getAttribute("aria-label")).toContain(text);
       if (["unavailable", "error"].includes(status)) {
-        expect(statusView.tooltipContent.textContent).toContain("Details");
+        expect(statusView.button.getAttribute("aria-label")).toContain("Details");
       } else {
-        expect(statusView.tooltipContent.textContent).toBe(text);
+        expect(statusView.button.getAttribute("aria-label")).toBe(text);
       }
     }
   });
@@ -201,7 +201,7 @@ describe("document symbol source selector", () => {
       await render();
       expect(statusView.button.textContent).toBe(label);
       expect(statusView.element.style.display).toBe("");
-      expect(statusView.tooltipContent.textContent).toBe(`This file uses ${name} symbols`);
+      expect(statusView.button.getAttribute("aria-label")).toBe(`This file uses ${name} symbols`);
     }
     registry.setState(editor, {
       mode: "auto",
@@ -211,7 +211,7 @@ describe("document symbol source selector", () => {
     });
     await render();
     expect(statusView.button.textContent).toBe("LS");
-    expect(statusView.tooltipContent.textContent).toBe(
+    expect(statusView.button.getAttribute("aria-label")).toBe(
       "This file uses SOFiSTiK Language Server symbols",
     );
   });
@@ -231,7 +231,7 @@ describe("document symbol source selector", () => {
     await render();
     expect(statusView.element.style.display).toBe("");
     expect(statusView.button.textContent).toBe("TS");
-    expect(statusView.tooltipContent.textContent).toBe("This file uses Tree-sitter symbols");
+    expect(statusView.button.getAttribute("aria-label")).toBe("This file uses Tree-sitter symbols");
     registry.setState(editor, {
       mode: "auto",
       sourceId: null,
@@ -240,7 +240,7 @@ describe("document symbol source selector", () => {
     });
     await render();
     expect(statusView.button.textContent).toBe("LS");
-    expect(statusView.tooltipContent.textContent).toBe(
+    expect(statusView.button.getAttribute("aria-label")).toBe(
       "This file uses SOFiSTiK Language Server symbols",
     );
   });
@@ -571,7 +571,7 @@ describe("document symbol source selector", () => {
     listView = new SourceListView(registry);
     await listView.toggle(editor);
     await render();
-    expect(statusView.tooltipContent.textContent).toBe(
+    expect(statusView.button.getAttribute("aria-label")).toBe(
       "This file uses SOFiSTiK Language Server symbols",
     );
     expect(registry.getDocumentSourceState(editor).scope).toBe("grammar");
