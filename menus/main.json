@@ -1,7 +1,7 @@
 {
   "menu": [
     {
-      "label": "Search",
+      "label": "Go",
       "submenu": [
         {
           "label": "Go to File Symbol…",
