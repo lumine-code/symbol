@@ -1,17 +1,71 @@
 {
   "title": "symbol",
   "description": "Browse the functions and symbols of a JavaScript file.",
-  "recordedOn": "2026-10-13",
-  "sourceRevision": "45fc7a5b10740243c799b9a786228e6cb16d4137",
+  "recordedOn": "2026-10-14",
+  "sourceRevision": "a33f1b9dc0d752d422bf772ea5a94ab8cd95f06a",
+  "themeSourceRevision": "7fbd047a87ecf1367c896b19ff270cdc28d319f7",
   "mode": "normal",
   "fontSettings": "default",
-  "themeSourceRevision": "6564a9e21899b5541e9c8f8006f9be6d6d72e6ad",
+  "scenario": "demo.js",
+  "recipeHash": "a16814e84dec5d8d8b433d94dd49427bae1c3e920286758b1c440c402804fdfe",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "electron": "44.7.0",
+    "chrome": "152.0.7977.130",
+    "devicePixelRatio": 1,
+    "locale": "en-GB",
+    "fontFamily": "Fira Code, Menlo, DejaVu Sans Mono, Consolas, monospace",
+    "fontSize": 14,
+    "themes": ["one-day-syntax", "one-day-ui"]
+  },
+  "viewport": { "width": 1100, "height": 730 },
+  "cornerRadius": 10,
+  "sources": {
+    "editor": {
+      "revision": "8be8f86075ad93df038610d82b3ac6d99329957d",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "package": {
+      "revision": "a33f1b9dc0d752d422bf772ea5a94ab8cd95f06a",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "symbol": {
+      "revision": "a33f1b9dc0d752d422bf772ea5a94ab8cd95f06a",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "language-javascript": {
+      "revision": "ae2e6968e3a349fb4d09ce53e339a0f8cce903aa",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "one-theme": {
+      "revision": "7fbd047a87ecf1367c896b19ff270cdc28d319f7",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "symbol-tree-sitter": {
+      "revision": "4cc0eacab5ff6c5b1c804f270ff148ffd6f2ea5d",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  "fixtures": [
+    {
+      "file": "editing/signal.js",
+      "sha256": "2a36953daadd1ae53070d0ff7ceab4624395fdb957104aa6e8ec92d785cadf1d"
+    }
+  ],
   "images": [
     {
       "file": "demo.png",
       "label": "Browse the functions and symbols of a JavaScript file.",
       "width": 1100,
-      "height": 730
+      "height": 730,
+      "sha256": "e6ebd46927a291a42eda7ab18a1d9550f1b3285e64a314705ac0212f7e3025be"
     }
   ]
 }
