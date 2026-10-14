@@ -166,6 +166,46 @@ describe("Symbol service and picker lifetimes", () => {
     expect(bar.element.querySelectorAll(".symbol-source-status").length).toBe(baseline);
   });
 
+  it("keeps an empty window's source selector cold until its first editor appears", async () => {
+    a.destroy();
+    b.destroy();
+    lumine.config.set("symbol.showStatusBarItem", true);
+    const bar = (await lumine.packages.activatePackage("status-bar")).mainModule.statusBar;
+    const api = {
+      addLeftTile: jasmine
+        .createSpy("addLeftTile")
+        .and.callFake((options) => bar.addLeftTile(options)),
+      addRightTile: jasmine
+        .createSpy("addRightTile")
+        .and.callFake((options) => bar.addRightTile(options)),
+    };
+    leases.push(main.consumeStatusBar(windowService(api)));
+    expect([...main.sourceStatusViews].find((view) => view.statusBar === api)).toBeUndefined();
+    expect(api.addLeftTile).not.toHaveBeenCalled();
+    expect(api.addRightTile).not.toHaveBeenCalled();
+    a = await lumine.workspace.open();
+    const view = [...main.sourceStatusViews].find((view) => view.statusBar === api);
+    expect(view).toBeDefined();
+    expect(view.editor).toBe(a);
+    expect(api.addLeftTile.calls.count() + api.addRightTile.calls.count()).toBe(1);
+  });
+
+  it("does not wake a cold source selector after its last service edge withdraws", async () => {
+    a.destroy();
+    b.destroy();
+    lumine.config.set("symbol.showStatusBarItem", true);
+    const api = {
+      addLeftTile: jasmine.createSpy("addLeftTile"),
+      addRightTile: jasmine.createSpy("addRightTile"),
+    };
+    const lease = main.consumeStatusBar(windowService(api));
+    lease.dispose();
+    a = await lumine.workspace.open();
+    expect([...main.sourceStatusViews].find((view) => view.statusBar === api)).toBeUndefined();
+    expect(api.addLeftTile).not.toHaveBeenCalled();
+    expect(api.addRightTile).not.toHaveBeenCalled();
+  });
+
   it("allocates one source tile and retains it while its placement stays current", async () => {
     lumine.config.set("symbol.showStatusBarItem", true);
     lumine.config.set("grammar-selector.showOnRightSideOfStatusBar", false);
@@ -222,9 +262,10 @@ describe("Symbol service and picker lifetimes", () => {
     };
     const lease = main.consumeStatusBar(windowService(api));
     leases.push(lease);
-    const view = [...main.sourceStatusViews].find((view) => view.statusBar === api);
+    expect([...main.sourceStatusViews].find((view) => view.statusBar === api)).toBeUndefined();
     armed = true;
     lumine.config.set("symbol.showStatusBarItem", true);
+    const view = [...main.sourceStatusViews].find((view) => view.statusBar === api);
     expect(api.addLeftTile).toHaveBeenCalledTimes(1);
     expect(bar.getLeftTiles().filter((tile) => tile.getItem() === view.element)).toEqual([
       view.tile,
