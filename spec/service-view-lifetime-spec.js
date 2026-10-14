@@ -166,6 +166,71 @@ describe("Symbol service and picker lifetimes", () => {
     expect(bar.element.querySelectorAll(".symbol-source-status").length).toBe(baseline);
   });
 
+  it("allocates one source tile and retains it while its placement stays current", async () => {
+    lumine.config.set("symbol.showStatusBarItem", true);
+    lumine.config.set("grammar-selector.showOnRightSideOfStatusBar", false);
+    const statusMain = (await lumine.packages.activatePackage("status-bar")).mainModule;
+    const bar = statusMain.statusBar;
+    const api = {
+      addLeftTile: jasmine
+        .createSpy("addLeftTile")
+        .and.callFake((options) => bar.addLeftTile(options)),
+      addRightTile: jasmine
+        .createSpy("addRightTile")
+        .and.callFake((options) => bar.addRightTile(options)),
+    };
+    const lease = main.consumeStatusBar(windowService(api));
+    leases.push(lease);
+    const view = [...main.sourceStatusViews].find((view) => view.statusBar === api);
+    const initial = view.tile;
+    const destroy = spyOn(initial, "destroy").and.callThrough();
+    view.attach();
+    view.attach();
+    expect(api.addLeftTile).toHaveBeenCalledTimes(1);
+    expect(api.addRightTile).not.toHaveBeenCalled();
+    expect(view.tile).toBe(initial);
+    expect(destroy).not.toHaveBeenCalled();
+
+    lumine.config.set("symbol.showStatusBarItem", false);
+    view.attach();
+    lumine.config.set("grammar-selector.showOnRightSideOfStatusBar", true);
+    expect(destroy).toHaveBeenCalledTimes(1);
+    expect(api.addLeftTile).toHaveBeenCalledTimes(1);
+    expect(api.addRightTile).not.toHaveBeenCalled();
+    lumine.config.set("symbol.showStatusBarItem", true);
+    expect(api.addRightTile).toHaveBeenCalledTimes(1);
+    expect(bar.getRightTiles().some((tile) => tile.getItem() === view.element)).toBe(true);
+  });
+
+  it("keeps a tile allocated during a reentrant hide and show at the same placement", async () => {
+    lumine.config.set("symbol.showStatusBarItem", false);
+    lumine.config.set("grammar-selector.showOnRightSideOfStatusBar", false);
+    const statusMain = (await lumine.packages.activatePackage("status-bar")).mainModule;
+    const bar = statusMain.statusBar;
+    let armed = false;
+    const api = {
+      addLeftTile: jasmine.createSpy("addLeftTile").and.callFake((options) => {
+        const tile = bar.addLeftTile(options);
+        if (armed) {
+          armed = false;
+          lumine.config.set("symbol.showStatusBarItem", false);
+          lumine.config.set("symbol.showStatusBarItem", true);
+        }
+        return tile;
+      }),
+      addRightTile: (options) => bar.addRightTile(options),
+    };
+    const lease = main.consumeStatusBar(windowService(api));
+    leases.push(lease);
+    const view = [...main.sourceStatusViews].find((view) => view.statusBar === api);
+    armed = true;
+    lumine.config.set("symbol.showStatusBarItem", true);
+    expect(api.addLeftTile).toHaveBeenCalledTimes(1);
+    expect(bar.getLeftTiles().filter((tile) => tile.getItem() === view.element)).toEqual([
+      view.tile,
+    ]);
+  });
+
   it("keeps an initializing status selector alive during reentrant duplicate withdrawal", async () => {
     lumine.config.set("symbol.showStatusBarItem", true);
     const statusMain = (await lumine.packages.activatePackage("status-bar")).mainModule;
