@@ -418,6 +418,7 @@ describe("symbol", () => {
       symbolsView = getDocumentSymbolsView();
 
       symbolsView.getElement().querySelectorAll("li")[1].click();
+      await conditionPromise(() => editor.getCursorBufferPosition().row === 3);
       // It'll move to the first non-whitespace character on the line.
       expect(editor.getCursorBufferPosition()).toEqual([3, 0]);
     });

@@ -27,7 +27,9 @@
   "types": "./lib/main.d.ts",
   "specPackages": [
     "symbol-tree-sitter",
-    "status-bar"
+    "status-bar",
+    "open-with",
+    "open-external"
   ],
   "engines": {
     "lumine": "^1.0.0",
