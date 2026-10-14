@@ -46,7 +46,6 @@ Commands available in `.symbol`:
 
 - `symbol:open-selected-symbol`: open the selected symbol with its default opener,
 - `symbol:open-selected-with`: choose an opener for the symbol's saved local file,
-- `symbol:open-selected-pending`: open that file as a pending text editor,
 - `symbol:open-selected-external`: open that file in its external application,
 - `symbol:show-selected-in-folder`: reveal that file in the system file manager.
 

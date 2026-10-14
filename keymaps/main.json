@@ -1,15 +1,13 @@
 {
   ".symbol .select-list": {
     "alt-enter": "symbol:open-selected-with",
-    "shift-enter": "symbol:open-selected-pending",
     "ctrl-alt-enter": "symbol:open-selected-external",
-    "ctrl-shift-enter": "symbol:show-selected-in-folder"
+    "alt-shift-enter": "symbol:show-selected-in-folder"
   },
   ".symbol .select-list lumine-text-editor[mini]": {
     "alt-enter": "symbol:open-selected-with",
-    "shift-enter": "symbol:open-selected-pending",
     "ctrl-alt-enter": "symbol:open-selected-external",
-    "ctrl-shift-enter": "symbol:show-selected-in-folder"
+    "alt-shift-enter": "symbol:show-selected-in-folder"
   },
   ".symbol-source-selector lumine-text-editor[mini]": {
     "alt-enter": "symbol:use-document-source-for-grammar"

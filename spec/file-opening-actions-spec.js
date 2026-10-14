@@ -70,16 +70,29 @@ describe("symbol file opening actions", () => {
     });
   });
 
-  it("opens pending text at the symbol and records navigation when automatic previews are disabled", async () => {
-    lumine.config.set("core.allowPendingPaneItems", false);
-    expect((await click({ shiftKey: true })).status).toBe("success");
-    const editor = pane.getActiveItem();
-    expect(editor.getPath()).toBe(filename);
-    expect(editor.getCursorBufferPosition()).toEqual(editor.clipBufferPosition([2, 1]));
-    expect(pane.getPendingItem()).toBe(editor);
-    expect(stack.length).toBe(1);
-    expect(stack[0].editorId).toBe(source.id);
-  });
+  for (const modifiers of [{ shiftKey: true }, { ctrlKey: true, shiftKey: true }]) {
+    it(`selects without opening for ${modifiers.ctrlKey ? "Ctrl+Shift" : "Shift"}-click`, async () => {
+      const list = view.selectList;
+      const selected = list.getItems()[0];
+      await list.selectNone();
+      const open = spyOn(lumine.workspace, "open").and.callThrough();
+      const action = spyOn(list, "runAction").and.callThrough();
+      const event = new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        ...modifiers,
+      });
+      list.getElement().querySelector('[role="option"]').dispatchEvent(event);
+      await Promise.resolve();
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(list.getSelectedItem()).toBe(selected);
+      expect(action).not.toHaveBeenCalled();
+      expect(open).not.toHaveBeenCalled();
+      expect(view.selectListHost.isVisible()).toBe(true);
+    });
+  }
 
   it("honors a registered default viewer on an ordinary click", async () => {
     const viewer = {
@@ -109,12 +122,12 @@ describe("symbol file opening actions", () => {
     expect((await click({ ctrlKey: true, altKey: true })).status).toBe("success");
     await view.updateView({ items: [tag] });
     await view.attach();
-    expect((await click({ ctrlKey: true, shiftKey: true })).status).toBe("success");
+    expect((await click({ altKey: true, shiftKey: true })).status).toBe("success");
     expect(open).toHaveBeenCalledOnceWith(filename);
     expect(show).toHaveBeenCalledOnceWith(filename);
   });
 
-  it("retains virtual notebook navigation and does not stat its URI as a local pending target", async () => {
+  it("retains virtual notebook navigation and does not stat its URI as a local file target", async () => {
     const uri = "jupyter://notebook/spec-cell";
     const virtual = {
       name: "Notebook Symbol",
@@ -130,11 +143,27 @@ describe("symbol file opening actions", () => {
     leases.add(lumine.workspace.addOpener((value) => (value === uri ? viewer : undefined)));
     const stat = spyOn(fs, "isFileSync").and.callThrough();
     await view.updateView({ items: [virtual] });
-    expect((await view.selectList.runAction("symbol:open-selected-pending")).status).toBe(
+    expect((await view.selectList.runAction("symbol:open-selected-with")).status).toBe(
       "unavailable",
     );
     expect((await view.selectList.confirmSelection()).status).toBe("success");
     expect(pane.getActiveItem()).toBe(viewer);
     expect(stat.calls.allArgs().some(([value]) => value === uri)).toBe(false);
+  });
+
+  it("resolves chooser, external and reveal keys without a separate pending binding", () => {
+    const target = view.selectList.getQueryEditor().getElement();
+    for (const [keystrokes, command] of [
+      ["alt-enter", "symbol:open-selected-with"],
+      ["ctrl-alt-enter", "symbol:open-selected-external"],
+      ["alt-shift-enter", "symbol:show-selected-in-folder"],
+    ])
+      expect(lumine.keymaps.findKeyBindings({ target, keystrokes })[0]?.command).toBe(command);
+    for (const keystrokes of ["shift-enter", "ctrl-shift-enter"])
+      expect(
+        lumine.keymaps
+          .findKeyBindings({ target, keystrokes })
+          .some((binding) => binding.command.startsWith("symbol:")),
+      ).toBe(false);
   });
 });
