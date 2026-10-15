@@ -68,7 +68,7 @@ describe("Symbol command editor targets", () => {
     await lumine.fileWatchClient.settlePendingTeardown();
     if (path.dirname(fs.realpathSync.native(scratch)) !== temporary)
       throw Error("Symbol target cleanup escaped its private root");
-    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
   it("lists the symbols of the inactive dispatch editor", async () => {
     expect(lumine.workspace.getActiveTextEditor()).toBe(first);
