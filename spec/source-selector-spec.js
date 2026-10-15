@@ -946,6 +946,11 @@ describe("document symbol source selector integration", () => {
       });
       editor.setText("function SlowFallbackSymbols() {}\n");
       await stopped;
+      // A ready empty remote answer does not wait for the local parser. Settle
+      // it before holding extraction so its readiness invalidation cannot
+      // cancel the query whose timeout behavior this test is checking.
+      expect(await editor.whenGrammarSettled()).toBe(true);
+      expect(editor.hasGrammarQuery("tagsQuery")).toBe(true);
       await service.getFileSymbols(editor);
 
       const sources = await service.listDocumentSources(editor);
