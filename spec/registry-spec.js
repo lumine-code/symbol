@@ -174,6 +174,61 @@ describe("symbol registry", () => {
     }
   });
 
+  it("preserves cached symbol coordinates when text is replaced by identical text", async () => {
+    const buffer = editor.getBuffer();
+    spyOn(buffer, "debouncedEmitDidStopChangingEvent");
+    editor.setText("Outer\n  inner text\n  following\nEnd\n");
+    const provider = makeProvider({
+      getDocumentSymbols: () => [
+        { name: "Outer", range: new Range([0, 0], [3, 3]) },
+        { name: "inner", position: [1, 2], range: new Range([1, 2], [1, 12]) },
+      ],
+    });
+    spyOn(provider, "getDocumentSymbols").and.callThrough();
+    registry.addDocumentProviders(provider);
+    const flat = await registry.getFileSymbols(editor);
+    const tree = await registry.getFileSymbolTree(editor);
+    const inner = tree[0].children[0];
+    const applied = jasmine.createSpy("applied changes");
+    const consolidated = jasmine.createSpy("consolidated changes");
+    const subscriptions = [buffer.onDidApplyChanges(applied), buffer.onDidChangeText(consolidated)];
+    try {
+      editor.setText(editor.getText());
+      editor.setTextInBufferRange(
+        [
+          [1, 2],
+          [1, 12],
+        ],
+        "inner text",
+      );
+      expect(applied).toHaveBeenCalledTimes(2);
+      for (const [{ changes }] of applied.calls.allArgs()) {
+        expect(changes.length).toBe(1);
+        expect(changes[0].oldText).toBe(changes[0].newText);
+      }
+      expect(consolidated).toHaveBeenCalledTimes(2);
+      expect(inner.position.isEqual([1, 2])).toBe(true);
+      expect(
+        inner.range.isEqual([
+          [1, 2],
+          [1, 12],
+        ]),
+      ).toBe(true);
+      expect(flat[0].position.isEqual([0, 0])).toBe(true);
+      expect(
+        flat[0].range.isEqual([
+          [0, 0],
+          [3, 3],
+        ]),
+      ).toBe(true);
+      expect(registry.peekFileSymbols(editor)).toBeNull();
+      expect(registry.peekFileSymbolTree(editor)).toBeNull();
+      expect(provider.getDocumentSymbols).toHaveBeenCalledTimes(1);
+    } finally {
+      subscriptions.forEach((subscription) => subscription.dispose());
+    }
+  });
+
   it("tracks retained trees through multiline transaction edits, undo, and redo while refreshing", async () => {
     const buffer = editor.getBuffer();
     spyOn(buffer, "debouncedEmitDidStopChangingEvent");
