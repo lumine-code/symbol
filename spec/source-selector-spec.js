@@ -980,6 +980,9 @@ describe("document symbol source selector integration", () => {
       const treeRequest = service.getFileSymbolTree(editor);
       try {
         const options = await captureStarted;
+        const originalText = editor.getText();
+        editor.setSoftWrapped(!editor.isSoftWrapped());
+        expect(editor.getText()).toBe(originalText);
         await new Promise((resolve) => setTimeout(resolve, remoteBudget * 3));
         await render();
         const state = service.getDocumentSourceState(editor);
