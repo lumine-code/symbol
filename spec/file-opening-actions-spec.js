@@ -50,12 +50,12 @@ describe("symbol file opening actions", () => {
     return done;
   }
 
-  it("passes the file, symbol position and captured pane to Open With", async () => {
-    await lumine.packages.deactivatePackage("open-with");
+  it("passes the file, symbol position and captured pane to Launcher", async () => {
+    await lumine.packages.deactivatePackage("launcher");
     const choose = jasmine.createSpy("choose symbol opener");
     leases.add(
       lumine.commands.add("lumine-workspace", {
-        "open-with:toggle": (event) => {
+        "launcher:open": (event) => {
           event.stopPropagation();
           choose(event.detail);
         },

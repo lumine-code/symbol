@@ -28,7 +28,7 @@
   "specPackages": [
     "symbol-tree-sitter",
     "status-bar",
-    "open-with",
+    "launcher",
     "open-external"
   ],
   "engines": {
