@@ -125,6 +125,169 @@ describe("symbol registry", () => {
     expect(second).toBe(first);
   });
 
+  it("tracks shared symbol coordinates before edit-driven cursor events without changing provider results", async () => {
+    const buffer = editor.getBuffer();
+    spyOn(buffer, "debouncedEmitDidStopChangingEvent");
+    editor.setText("class Outer {\n  first() { return 1; }\n  second() {}\n}\n");
+    const firstEnd = editor.lineTextForBufferRow(1).length;
+    const supplied = [
+      Object.freeze({
+        name: "Outer",
+        position: new Point(0, 6).freeze(),
+        range: new Range([0, 0], [3, 1]).freeze(),
+      }),
+      Object.freeze({
+        name: "first",
+        position: new Point(1, 2).freeze(),
+        range: new Range([1, 2], [1, firstEnd]).freeze(),
+      }),
+      Object.freeze({
+        name: "second",
+        position: new Point(2, 2).freeze(),
+        range: new Range([2, 2], [2, 13]).freeze(),
+      }),
+    ];
+    const provider = makeProvider({ getDocumentSymbols: () => supplied });
+    spyOn(provider, "getDocumentSymbols").and.callThrough();
+    registry.addDocumentProviders(provider);
+    const flat = await registry.getFileSymbols(editor);
+    const tree = await registry.getFileSymbolTree(editor);
+    const first = tree[0].children[0];
+    const observed = [];
+    editor.setCursorBufferPosition([1, firstEnd - 1]);
+    const subscription = editor.onDidChangeCursorPosition(({ textChanged, newBufferPosition }) => {
+      if (textChanged) observed.push(first.range.containsPoint(newBufferPosition));
+    });
+    try {
+      for (const character of "   added text") editor.insertText(character);
+      expect(observed.length).toBeGreaterThan(1);
+      expect(observed.every(Boolean)).toBe(true);
+      expect(first.range.end.isEqual([1, firstEnd + 13])).toBe(true);
+      expect(flat[1].range).toBe(first.range);
+      expect(flat[1].position).toBe(first.position);
+      expect(supplied[1].range.end.isEqual([1, firstEnd])).toBe(true);
+      expect(supplied[1].position.isEqual([1, 2])).toBe(true);
+      expect(registry.peekFileSymbolTree(editor)).toBeNull();
+      expect(provider.getDocumentSymbols).toHaveBeenCalledTimes(1);
+    } finally {
+      subscription.dispose();
+    }
+  });
+
+  it("tracks retained trees through multiline transaction edits, undo, and redo while refreshing", async () => {
+    const buffer = editor.getBuffer();
+    spyOn(buffer, "debouncedEmitDidStopChangingEvent");
+    editor.setText("Outer\n  inner text\n  following\nEnd\n");
+    registry.addDocumentProviders(
+      makeProvider({
+        getDocumentSymbols: () => [
+          { name: "Outer", range: new Range([0, 0], [3, 3]) },
+          { name: "inner", position: [1, 2], range: new Range([1, 2], [1, 12]) },
+          { name: "following", position: [2, 2], range: new Range([2, 2], [2, 11]) },
+        ],
+      }),
+    );
+    const tree = await registry.getFileSymbolTree(editor);
+    const inner = tree[0].children[0];
+    const following = tree[0].children[1];
+    // Consumers keep this tree while an idle refresh replaces its contents.
+    registry.invalidateEditor(editor);
+    editor.transact(() => {
+      editor.setTextInBufferRange(
+        [
+          [1, 7],
+          [1, 7],
+        ],
+        "\nnew ",
+      );
+      editor.setTextInBufferRange(
+        [
+          [0, 0],
+          [0, 0],
+        ],
+        "prefix\n",
+      );
+    });
+    expect(inner.position.isEqual([2, 2])).toBe(true);
+    expect(
+      inner.range.isEqual([
+        [2, 2],
+        [3, 9],
+      ]),
+    ).toBe(true);
+    expect(following.position.isEqual([4, 2])).toBe(true);
+    expect(
+      following.range.isEqual([
+        [4, 2],
+        [4, 11],
+      ]),
+    ).toBe(true);
+    editor.undo();
+    expect(inner.position.isEqual([1, 2])).toBe(true);
+    expect(
+      inner.range.isEqual([
+        [1, 2],
+        [1, 12],
+      ]),
+    ).toBe(true);
+    expect(following.position.isEqual([2, 2])).toBe(true);
+    editor.redo();
+    expect(
+      inner.range.isEqual([
+        [2, 2],
+        [3, 9],
+      ]),
+    ).toBe(true);
+    expect(following.position.isEqual([4, 2])).toBe(true);
+  });
+
+  it("moves point-only symbols once and releases retired generations", async () => {
+    const buffer = editor.getBuffer();
+    spyOn(buffer, "debouncedEmitDidStopChangingEvent");
+    editor.setText("before\npoint\nafter\n");
+    const providerPoint = new Point(1, 0).freeze();
+    registry.addDocumentProviders(
+      makeProvider({ getDocumentSymbols: () => [{ name: "point", position: providerPoint }] }),
+    );
+    const first = await registry.getFileSymbols(editor);
+    editor.setTextInBufferRange(
+      [
+        [0, 0],
+        [0, 0],
+      ],
+      "\n",
+    );
+    expect(first[0].position.isEqual([2, 0])).toBe(true);
+    expect(
+      first[0].range.isEqual([
+        [2, 0],
+        [2, 0],
+      ]),
+    ).toBe(true);
+    expect(providerPoint.isEqual([1, 0])).toBe(true);
+
+    registry.invalidateEditor(editor);
+    const replacement = await registry.getFileSymbols(editor);
+    editor.setTextInBufferRange(
+      [
+        [0, 0],
+        [0, 0],
+      ],
+      "\n",
+    );
+    expect(first[0].position.isEqual([2, 0])).toBe(true);
+    expect(replacement[0].position.isEqual([2, 0])).toBe(true);
+    registry.destroy();
+    editor.setTextInBufferRange(
+      [
+        [0, 0],
+        [0, 0],
+      ],
+      "\n",
+    );
+    expect(replacement[0].position.isEqual([2, 0])).toBe(true);
+  });
+
   it("assembles ordinary lexical hierarchies in linear containment work", () => {
     const count = 1000;
     const symbols = [];
