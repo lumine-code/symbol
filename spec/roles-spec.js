@@ -27,7 +27,9 @@ describe("separate symbol provider roles", () => {
     lumine.project.setPaths([root]);
     lumine.config.set("symbol.providerTimeout", 100);
     lumine.config.set("symbol.preferCertainProviders", []);
-    registry = new Registry();
+    const storage = (await lumine.packages.activatePackage("symbol")).mainModule.workspaceState;
+    await storage.update("documentSources", undefined);
+    registry = new Registry(storage);
     editor = await lumine.workspace.open();
   });
   afterEach(() => registry.destroy());

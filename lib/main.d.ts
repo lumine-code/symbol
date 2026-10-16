@@ -99,7 +99,7 @@ export interface SymbolRegistry {
     editor: TextEditor,
     sourceId: string | null,
     options?: { scope: "file" | "grammar" },
-  ): void;
+  ): Promise<void>;
   onDidChangeDocumentSource(
     callback: (event: { editor: TextEditor; state: DocumentSourceState }) => void,
   ): Disposable;

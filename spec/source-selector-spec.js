@@ -839,7 +839,7 @@ describe("document symbol source selector integration", () => {
     expect(service.getDocumentSourceState(editor).sourceId).toBe("symbol-tree-sitter");
   });
 
-  it("restores a file choice from the public environment's serialized package state", async () => {
+  it("retains a project file choice across package generations", async () => {
     const list = await openListFromTile();
     await list.selectItemById("symbol-tree-sitter");
     enterIn(list);
@@ -847,16 +847,16 @@ describe("document symbol source selector integration", () => {
     const previousMain = main;
     const previousService = service;
     const previousTile = document.querySelector(".symbol-source-status");
-    const state = JSON.parse(JSON.stringify(lumine.serialize())).packageStates.symbol;
-    expect(state.documentSources.some((entry) => entry[1] === "symbol-tree-sitter")).toBe(true);
+    await conditionPromise(() =>
+      main.workspaceState
+        .get("documentSources", [])
+        .some((entry) => entry[1] === "symbol-tree-sitter"),
+    );
     expect(lumine.config.get("symbol.documentSource", { scope: ["source.js"] })).toBe("auto");
 
-    // Reconstruct the package generation from the same package-state payload
-    // the environment restores when reopening its project state.
     invalidationSubscription.dispose();
     providerEdge.dispose();
-    await lumine.packages.unloadPackage("symbol", { serialize: false });
-    lumine.packages.setPackageState("symbol", state);
+    await lumine.packages.unloadPackage("symbol");
     await lumine.packages.activatePackage("symbol");
     main = lumine.packages.getActivePackage("symbol").mainModule;
     service = main.provideSymbolRegistry();
@@ -897,24 +897,18 @@ describe("document symbol source selector integration", () => {
     }
   });
 
-  it("restores project source choices through public deserialization without reactivating the package", async () => {
+  it("updates project source choices from storage without reactivating the package", async () => {
     const list = await openListFromTile();
     await list.selectItemById("symbol-tree-sitter");
     enterIn(list);
     await readySource("symbol-tree-sitter");
-    const snapshot = JSON.parse(JSON.stringify(lumine.serialize()));
-    const saved = snapshot.packageStates.symbol;
-    const restore = (symbolState) =>
-      lumine.deserialize(
-        {
-          packageStates: { symbol: symbolState },
-          uriHistory: snapshot.uriHistory,
-          fullScreen: snapshot.fullScreen,
-        },
-        { preservePackageState: true },
-      );
-
-    await restore({ documentSources: [] });
+    await conditionPromise(() =>
+      main.workspaceState
+        .get("documentSources", [])
+        .some((entry) => entry[1] === "symbol-tree-sitter"),
+    );
+    const saved = main.workspaceState.get("documentSources");
+    await main.workspaceState.update("documentSources", undefined);
     await readySource(sourceId);
     expect(lumine.packages.getActivePackage("symbol").mainModule).toBe(main);
     expect(main.provideSymbolRegistry()).toBe(service);
@@ -922,7 +916,7 @@ describe("document symbol source selector integration", () => {
     expect(service.getDocumentSourceState(editor).scope).toBe("grammar");
     expect(document.querySelector(".symbol-source-status").textContent).toBe("LS");
 
-    await restore(saved);
+    await main.workspaceState.update("documentSources", saved);
     await readySource("symbol-tree-sitter");
     expect(lumine.packages.getActivePackage("symbol").mainModule).toBe(main);
     expect(main.provideSymbolRegistry()).toBe(service);

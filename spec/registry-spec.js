@@ -41,7 +41,9 @@ describe("symbol registry", () => {
     jasmine.unspy(global, "setTimeout");
 
     lumine.config.set("symbol.providerTimeout", 1000);
-    registry = new Registry();
+    const storage = (await lumine.packages.activatePackage("symbol")).mainModule.workspaceState;
+    await storage.update("documentSources", undefined);
+    registry = new Registry(storage);
     editor = await lumine.workspace.open();
   });
 

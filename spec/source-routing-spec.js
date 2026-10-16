@@ -10,14 +10,16 @@ const sourceProvider = (id, score, load = () => [{ name: id, position: [0, 0] }]
 });
 
 describe("document source routing", () => {
-  let registry, editor, syntax, semantic, detached;
+  let registry, editor, syntax, semantic, detached, storage;
   beforeEach(async () => {
     jasmine.useRealClock();
     lumine.config.set("symbol.providerTimeout", 1000);
     lumine.config.unset("symbol.documentSource", { scopeSelector: ".text.plain" });
     lumine.config.set("symbol.documentSource", "auto");
     lumine.config.set("symbol.preferCertainProviders", []);
-    registry = new SymbolRegistry();
+    storage = (await lumine.packages.activatePackage("symbol")).mainModule.workspaceState;
+    await storage.update("documentSources", undefined);
+    registry = new SymbolRegistry(storage);
     editor = await lumine.workspace.open();
     syntax = sourceProvider("syntax", 0.999);
     semantic = sourceProvider("semantic", 1);
@@ -50,11 +52,11 @@ describe("document source routing", () => {
 
   it("reuses each unchanged source snapshot and clears all snapshots on text edits", async () => {
     const first = await registry.getFileSymbols(editor);
-    registry.setDocumentSource(editor, "syntax");
+    await registry.setDocumentSource(editor, "syntax");
     const second = await registry.getFileSymbols(editor);
-    registry.setDocumentSource(editor, "semantic");
+    await registry.setDocumentSource(editor, "semantic");
     expect(await registry.getFileSymbols(editor)).toBe(first);
-    registry.setDocumentSource(editor, "syntax");
+    await registry.setDocumentSource(editor, "syntax");
     expect(await registry.getFileSymbols(editor)).toBe(second);
     expect(syntax.getDocumentSymbols).toHaveBeenCalledTimes(1);
     expect(semantic.getDocumentSymbols).toHaveBeenCalledTimes(1);
@@ -63,15 +65,15 @@ describe("document source routing", () => {
     editor.getBuffer().emitDidStopChangingEvent();
     expect(await registry.getFileSymbols(editor)).not.toBe(second);
     expect(syntax.getDocumentSymbols).toHaveBeenCalledTimes(2);
-    registry.setDocumentSource(editor, "semantic");
+    await registry.setDocumentSource(editor, "semantic");
     expect(await registry.getFileSymbols(editor)).not.toBe(first);
     expect(semantic.getDocumentSymbols).toHaveBeenCalledTimes(2);
   });
 
   it("lets a file Auto choice override a manual grammar choice", async () => {
-    registry.setDocumentSource(editor, "syntax", { scope: "grammar" });
+    await registry.setDocumentSource(editor, "syntax", { scope: "grammar" });
     expect((await registry.getFileSymbols(editor))[0].name).toBe("syntax");
-    registry.setDocumentSource(editor, null);
+    await registry.setDocumentSource(editor, null);
     expect((await registry.getFileSymbols(editor))[0].name).toBe("semantic");
     expect(registry.getDocumentSourceState(editor).scope).toBe("file");
     expect(
@@ -82,15 +84,31 @@ describe("document source routing", () => {
   it("shares a session choice between views of the same unsaved buffer and restores it", async () => {
     detached = lumine.workspace.buildTextEditor({ buffer: editor.getBuffer() });
     await registry.getFileSymbols(detached);
-    registry.setDocumentSource(editor, "syntax");
+    await registry.setDocumentSource(editor, "syntax");
     expect((await registry.getFileSymbols(detached))[0].name).toBe("syntax");
-    const saved = JSON.parse(JSON.stringify(registry.serialize()));
-    expect(saved.documentSources).toContain([`buffer:${editor.getBuffer().getId()}`, "syntax"]);
+    const saved = storage.get("documentSources", []);
+    expect(saved).toContain([`buffer:${editor.getBuffer().getId()}`, "syntax"]);
     registry.destroy();
-    registry = new SymbolRegistry(saved);
+    registry = new SymbolRegistry(storage);
     registry.addDocumentProviders(syntax, semantic);
     expect((await registry.getFileSymbols(editor))[0].name).toBe("syntax");
     expect(registry.getDocumentSourceState(editor).scope).toBe("file");
+  });
+
+  it("keeps a source choice when an unsaved buffer acquires a file URI", async () => {
+    await registry.setDocumentSource(editor, "syntax");
+    const directory = require("@lumine-code/fs-temp").mkdirSync("symbol-source-save-");
+    editor.getBuffer().setPath(require("node:path").join(directory, "saved.txt"));
+    expect(registry.getDocumentSourceState(editor).sourceId).toBe("syntax");
+    await conditionPromise(() =>
+      storage
+        .get("documentSources", [])
+        .some(([key, source]) => key === `uri:${editor.getURI()}` && source === "syntax"),
+    );
+    registry.destroy();
+    registry = new SymbolRegistry(storage);
+    registry.addDocumentProviders(syntax, semantic);
+    expect((await registry.getFileSymbols(editor))[0].name).toBe("syntax");
   });
 
   it("cancels an obsolete source and prevents its late response from replacing the new source", async () => {
@@ -103,7 +121,7 @@ describe("document source routing", () => {
     });
     const old = registry.getFileSymbols(editor);
     await conditionPromise(() => finish);
-    registry.setDocumentSource(editor, "syntax");
+    await registry.setDocumentSource(editor, "syntax");
     expect(request.signal.aborted).toBe(true);
     expect(await old).toBeNull();
     const current = await registry.getFileSymbols(editor);
@@ -115,7 +133,7 @@ describe("document source routing", () => {
   });
 
   it("retains the full name of a withdrawn manual source without silently falling back", async () => {
-    registry.setDocumentSource(editor, "semantic");
+    await registry.setDocumentSource(editor, "semantic");
     await registry.getFileSymbols(editor);
     registry.removeDocumentProviders(semantic);
     expect(await registry.getFileSymbols(editor)).toBeNull();
@@ -155,18 +173,18 @@ describe("document source routing", () => {
   });
 
   it("restores incoming project choices without replacing the registry or its consumers", async () => {
-    registry.setDocumentSource(editor, "syntax");
-    const saved = JSON.parse(JSON.stringify(registry.serialize()));
+    await registry.setDocumentSource(editor, "syntax");
+    const saved = storage.get("documentSources", []);
     const syntaxSnapshot = await registry.getFileSymbols(editor);
     const changed = jasmine.createSpy("invalidated");
     registry.onDidInvalidateFileSymbols(changed);
-    registry.restoreSessionState({});
+    await storage.update("documentSources", undefined);
     expect((await registry.getFileSymbols(editor))[0].name).toBe("semantic");
-    registry.restoreSessionState(saved);
+    await storage.update("documentSources", saved);
     expect(await registry.getFileSymbols(editor)).toBe(syntaxSnapshot);
     expect(registry.getDocumentSourceState(editor).scope).toBe("file");
     expect(changed).toHaveBeenCalledTimes(2);
-    registry.restoreSessionState(saved);
+    await storage.update("documentSources", saved);
     expect(changed).toHaveBeenCalledTimes(2);
   });
 
