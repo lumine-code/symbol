@@ -81,6 +81,14 @@ describe("Symbol command editor targets", () => {
     expect(main.fileView.sourceEditor).toBe(second);
     expect(main.fileView.selectList.getItems()[0].name).toBe("second.txt");
   });
+  it("keeps the file-symbol toggle available inside its own modal list", async () => {
+    await lumine.commands.dispatch(first.element, "symbol:toggle-file-symbols");
+    await conditionPromise(() => main.fileView?.selectListHost.isVisible());
+    const target = main.fileView.getElement();
+    expect(lumine.commands.canDispatch(target, "symbol:toggle-file-symbols")).toBe(true);
+    await lumine.commands.dispatch(target, "symbol:toggle-file-symbols");
+    expect(main.fileView.selectListHost.isVisible()).toBe(false);
+  });
   it("resolves a definition from the inactive dispatch editor and records that origin", async () => {
     await lumine.commands.dispatch(second.getElement(), "symbol:go-to-definition");
     await conditionPromise(() => calls.calls.count() === 1 && main.stack.length === 1);

@@ -39,6 +39,10 @@ Commands available in `lumine-text-editor:not([mini])`:
 - `symbol:toggle-file-symbols`: browse the symbols in the active editor,
 - `symbol:go-to-definition`: jump to the definition of the symbol under the cursor.
 
+Commands available in the file-symbol list:
+
+- `symbol:toggle-file-symbols`: close the list without choosing a symbol.
+
 Commands available in `.symbol-source-selector`:
 
 - `symbol:use-document-source`: use the selected source for this file in the current session,
