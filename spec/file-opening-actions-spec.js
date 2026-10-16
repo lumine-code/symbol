@@ -151,6 +151,33 @@ describe("symbol file opening actions", () => {
     expect(stat.calls.allArgs().some(([value]) => value === uri)).toBe(false);
   });
 
+  it("describes file actions without consulting the filesystem", async () => {
+    const stat = spyOn(fs, "isFileSync").and.throwError("Unexpected presentation stat");
+    const asyncStat = spyOn(require("node:fs").promises, "stat").and.throwError(
+      "Unexpected presentation stat",
+    );
+    expect(view.fileTarget(tag).path).toBe(filename);
+    for (const command of [
+      "symbol:open-selected-with",
+      "symbol:open-selected-external",
+      "symbol:show-selected-in-folder",
+    ]) {
+      expect((await view.selectList.getActionAvailability(command)).status).toBe("available");
+    }
+    expect(stat).not.toHaveBeenCalled();
+    expect(asyncStat).not.toHaveBeenCalled();
+  });
+
+  it("validates the current file only when an action is executed", async () => {
+    const stat = spyOn(require("node:fs").promises, "stat").and.rejectWith(new Error("missing"));
+    expect(view.fileTarget(tag).path).toBe(filename);
+    expect(stat).not.toHaveBeenCalled();
+    await expectAsync(view.performFileAction(tag, "external")).toBeRejectedWithError(
+      "Selected file does not exist",
+    );
+    expect(stat).toHaveBeenCalledOnceWith(filename);
+  });
+
   it("resolves chooser, external and reveal keys without a separate pending binding", () => {
     const target = view.selectList.getQueryEditor().getElement();
     for (const [keystrokes, command] of [
