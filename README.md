@@ -32,10 +32,12 @@ Commands available in `lumine-workspace`:
 - `symbol:toggle-project-symbols`: search symbols from active language backends,
 - `symbol:select-document-source`: choose a source for this file or its grammar,
 - `symbol:show-active-providers`: list the symbol providers currently available,
+- `symbol:return-from-definition`: return to the position before the last definition jump.
+
+Commands available in `lumine-text-editor:not([mini])`:
 
 - `symbol:toggle-file-symbols`: browse the symbols in the active editor,
-- `symbol:go-to-definition`: jump to the definition of the symbol under the cursor,
-- `symbol:return-from-definition`: return to the position before the last definition jump.
+- `symbol:go-to-definition`: jump to the definition of the symbol under the cursor.
 
 Commands available in `.symbol-source-selector`:
 

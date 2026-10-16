@@ -98,15 +98,14 @@ describe("Symbol command editor targets", () => {
     expect(first.getCursorBufferPosition()).toEqual([3, 0]);
     expect(main.stack[0].editorId).toBe(first.id);
   });
-  it("opens active file symbols from a focused unrelated surface", async () => {
+  it("does not borrow the active editor from an unrelated focused surface", async () => {
     const button = document.createElement("button");
     lumine.workspace.getElement().appendChild(button);
     try {
       button.focus();
       await lumine.commands.dispatch(button, "symbol:toggle-file-symbols");
-      await conditionPromise(() => main.fileView?.selectList.getItems().length === 1);
-      expect(calls.calls.mostRecent().args[0]).toBe(first);
-      expect(main.fileView.sourceEditor).toBe(first);
+      expect(lumine.commands.canDispatch(button, "symbol:toggle-file-symbols")).toBe(false);
+      expect(calls).not.toHaveBeenCalled();
     } finally {
       button.remove();
     }
