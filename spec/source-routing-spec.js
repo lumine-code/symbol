@@ -1,4 +1,4 @@
-const SymbolRegistry = require("../lib/registry");
+let SymbolRegistry;
 
 const sourceProvider = (id, score, load = () => [{ name: id, position: [0, 0] }]) => ({
   name: id,
@@ -18,6 +18,7 @@ describe("document source routing", () => {
     lumine.config.set("symbol.documentSource", "auto");
     lumine.config.set("symbol.preferCertainProviders", []);
     storage = (await lumine.packages.activatePackage("symbol")).mainModule.workspaceState;
+    SymbolRegistry = require("../lib/registry");
     await storage.update("documentSources", undefined);
     registry = new SymbolRegistry(storage);
     editor = await lumine.workspace.open();
@@ -186,6 +187,73 @@ describe("document source routing", () => {
     expect(changed).toHaveBeenCalledTimes(2);
     await storage.update("documentSources", saved);
     expect(changed).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not replay an older source choice when rapid local choices are committed", async () => {
+    const choices = [];
+    registry.onDidInvalidateFileSymbols(({ editor: changed }) => {
+      if (changed === editor) choices.push(registry.choiceFor(editor));
+    });
+
+    const first = registry.setDocumentSource(editor, "syntax");
+    const second = registry.setDocumentSource(editor, "semantic");
+    expect(registry.choiceFor(editor)).toBe("semantic");
+    await Promise.all([first, second]);
+
+    expect(choices).toEqual(["syntax", "semantic"]);
+    expect(registry.choiceFor(editor)).toBe("semantic");
+    expect(storage.get("documentSources")).toContain([
+      `buffer:${editor.getBuffer().getId()}`,
+      "semantic",
+    ]);
+  });
+
+  it("keeps an incoming project choice when an outgoing choice finishes saving", async () => {
+    const paths = lumine.project.getPaths();
+    const key = `buffer:${editor.getBuffer().getId()}`;
+    lumine.project.setPaths([__dirname]);
+    await storage.update("documentSources", [[key, "semantic"]]);
+    lumine.project.setPaths(paths);
+    const mutate = storage.mutate.bind(storage);
+    let release;
+    let didCommit;
+    const committed = new Promise((resolve) => (didCommit = resolve));
+    spyOn(storage, "mutate").and.callFake((...args) =>
+      mutate(...args).then(
+        (value) =>
+          new Promise((resolve) => {
+            release = () => resolve(value);
+            didCommit();
+          }),
+      ),
+    );
+    const saving = registry.setDocumentSource(editor, "syntax");
+    await committed;
+    try {
+      lumine.project.setPaths([__dirname]);
+      expect(registry.choiceFor(editor)).toBe("semantic");
+      release();
+      await saving;
+      expect(registry.choiceFor(editor)).toBe("semantic");
+      expect(storage.get("documentSources")).toEqual([[key, "semantic"]]);
+    } finally {
+      release();
+      await saving;
+      lumine.project.setPaths(paths);
+    }
+  });
+
+  it("restores the committed source after a local source choice fails to save", async () => {
+    await registry.setDocumentSource(editor, "semantic");
+    spyOn(lumine.notifications, "addError");
+    spyOn(storage, "mutate").and.rejectWith(new Error("storage unavailable"));
+
+    await expectAsync(registry.setDocumentSource(editor, "syntax")).toBeRejectedWithError(
+      "storage unavailable",
+    );
+
+    expect(registry.choiceFor(editor)).toBe("semantic");
+    expect(lumine.notifications.addError).toHaveBeenCalled();
   });
 
   it("lets a local fallback finish after the remote response deadline", async () => {
