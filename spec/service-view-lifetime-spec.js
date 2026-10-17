@@ -152,6 +152,33 @@ describe("Symbol service and picker lifetimes", () => {
     expect(b.getCursorBufferPosition().toArray()).toEqual([0, 2]);
   });
 
+  it("restores the last committed navigation after repeated choices and a later preview", async () => {
+    lumine.config.set("symbol.quickJumpToFileSymbol", true);
+    const payload = provider(() => [
+      { name: "First", position: [1, 0] },
+      { name: "Second", position: [2, 0] },
+    ]);
+    provide("document", payload);
+    main.service.setDocumentSource(a, payload.packageName);
+    b.setCursorBufferPosition([0, 2]);
+    select(a);
+    const view = main.createFileView();
+    await view.toggle();
+    await choices(view, "First");
+    await view.selectList.runAction("select-list:toggle-keep-open");
+    for (const index of [0, 1]) {
+      await view.selectList.selectIndex(index);
+      await view.selectList.confirmSelection();
+      expect(view.isVisible()).toBe(true);
+      expect(a.getCursorBufferPosition().toArray()).toEqual([index + 1, 0]);
+    }
+    await view.selectList.selectIndex(0);
+    expect(a.getCursorBufferPosition().toArray()).toEqual([1, 0]);
+    await view.cancel();
+    expect(a.getCursorBufferPosition().toArray()).toEqual([2, 0]);
+    expect(b.getCursorBufferPosition().toArray()).toEqual([0, 2]);
+  });
+
   it("keeps a single real source selector per shared status-bar payload", async () => {
     lumine.config.set("symbol.showStatusBarItem", true);
     const statusMain = (await lumine.packages.activatePackage("status-bar")).mainModule;
