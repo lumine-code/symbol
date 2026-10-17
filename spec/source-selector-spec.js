@@ -670,6 +670,40 @@ describe("document symbol source selector", () => {
     ]);
   });
 
+  it("releases an editor destroyed before the initial view update finishes", async () => {
+    listView = new SourceListView(registry);
+    let release, entered;
+    const gate = new Promise((resolve) => (release = resolve));
+    const started = new Promise((resolve) => (entered = resolve));
+    const update = listView.selectList.update.bind(listView.selectList);
+    let initial = true;
+    spyOn(listView.selectList, "update").and.callFake(async (props) => {
+      const held = initial;
+      initial = false;
+      await update(props);
+      if (held) {
+        entered();
+        await gate;
+      }
+    });
+    const opening = listView.toggle(editor);
+    await started;
+    editor.destroy();
+    expect(listView.editor).toBeNull();
+    release();
+    await opening;
+    expect(listView.selectListHost.isVisible()).toBe(false);
+
+    const other = await lumine.workspace.open();
+    try {
+      await listView.toggle(other);
+      expect(listView.editor).toBe(other);
+      expect(listView.selectListHost.isVisible()).toBe(true);
+    } finally {
+      other.destroy();
+    }
+  });
+
   it("does not reopen a destroyed selector when metadata arrives late", async () => {
     let finish;
     spyOn(registry, "listDocumentSources").and.returnValue(

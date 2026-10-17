@@ -179,6 +179,79 @@ describe("Symbol service and picker lifetimes", () => {
     expect(b.getCursorBufferPosition().toArray()).toEqual([0, 2]);
   });
 
+  for (const back of ["breadcrumb", "shift-escape"]) {
+    it(`restores committed quick-jump navigation after a later preview and ${back} back`, async () => {
+      lumine.config.set("symbol.quickJumpToFileSymbol", true);
+      const payload = provider(() => [
+        { name: "Committed", position: [1, 0] },
+        { name: "Preview", position: [2, 0] },
+      ]);
+      provide("document", payload);
+      main.service.setDocumentSource(a, payload.packageName);
+      select(a);
+      const parent = lumine.workspace.addInputDialog({}, { crumb: "Parent" });
+      try {
+        await parent.show();
+        const view = main.createFileView();
+        const attach = view.attach.bind(view);
+        spyOn(view, "attach").and.callFake((options) => attach({ ...options, crumb: "Symbols" }));
+        await view.toggle("", a);
+        await choices(view, "Committed");
+        await view.selectList.runAction("select-list:toggle-keep-open");
+        await view.selectList.selectIndex(0);
+        await view.selectList.confirmSelection();
+        await view.selectList.selectIndex(1);
+        expect(a.getCursorBufferPosition().toArray()).toEqual([2, 0]);
+
+        if (back === "breadcrumb") {
+          expect(lumine.workspace.popModal()).toBe(true);
+        } else {
+          const target = view.selectList.getQueryEditor().getElement();
+          expect(
+            lumine.keymaps.findKeyBindings({ keystrokes: "shift-escape", target })[0].command,
+          ).toBe("modal:go-back");
+          await lumine.commands.dispatch(target, "modal:go-back");
+        }
+
+        expect(parent.isVisible()).toBe(true);
+        expect(view.isVisible()).toBe(false);
+        expect(a.getCursorBufferPosition().toArray()).toEqual([1, 0]);
+        expect(view.initialState).toBeNull();
+        view.selectListHost.cancel();
+        expect(a.getCursorBufferPosition().toArray()).toEqual([1, 0]);
+      } finally {
+        await parent.destroy();
+      }
+    });
+  }
+
+  it("clears terminal preview state before an immediate reopening", async () => {
+    lumine.config.set("symbol.quickJumpToFileSymbol", true);
+    const payload = provider(() => [
+      { name: "First", position: [1, 0] },
+      { name: "Second", position: [2, 0] },
+    ]);
+    provide("document", payload);
+    main.service.setDocumentSource(a, payload.packageName);
+    a.setCursorBufferPosition([0, 1]);
+    select(a);
+    const view = main.createFileView();
+    await view.toggle();
+    await choices(view, "First");
+    await view.selectList.selectIndex(1);
+
+    view.selectListHost.cancel();
+    expect(a.getCursorBufferPosition().toArray()).toEqual([0, 1]);
+    expect(view.initialState).toBeNull();
+    expect(view.selectList.getItems()).toEqual([]);
+    const reopening = view.toggle("", a);
+    await reopening;
+    await choices(view, "First");
+
+    expect(view.isVisible()).toBe(true);
+    expect(view.selectList.getItems().map(({ name }) => name)).toEqual(["First", "Second"]);
+  });
+
   it("keeps a single real source selector per shared status-bar payload", async () => {
     lumine.config.set("symbol.showStatusBarItem", true);
     const statusMain = (await lumine.packages.activatePackage("status-bar")).mainModule;
