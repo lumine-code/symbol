@@ -1,9 +1,9 @@
 {
   "title": "symbol",
   "description": "Browse the functions and symbols of a JavaScript file.",
-  "recordedOn": "2026-10-14",
-  "sourceRevision": "a33f1b9dc0d752d422bf772ea5a94ab8cd95f06a",
-  "themeSourceRevision": "7fbd047a87ecf1367c896b19ff270cdc28d319f7",
+  "recordedOn": "2026-10-18",
+  "sourceRevision": "e62e4617e4ba16cb99234048b82999760beaaf82",
+  "themeSourceRevision": "45b22049e87256e9327beb0b350e67fe81d7fc81",
   "mode": "normal",
   "fontSettings": "default",
   "scenario": "demo.js",
@@ -11,8 +11,8 @@
   "environment": {
     "platform": "win32",
     "arch": "x64",
-    "electron": "44.7.0",
-    "chrome": "152.0.7977.130",
+    "electron": "44.9.0",
+    "chrome": "152.0.7977.167",
     "devicePixelRatio": 1,
     "locale": "en-GB",
     "fontFamily": "Fira Code, Menlo, DejaVu Sans Mono, Consolas, monospace",
@@ -21,34 +21,35 @@
   },
   "viewport": { "width": 1100, "height": 730 },
   "cornerRadius": 10,
+  "privacy": { "version": 1, "location": "neutral", "textChecked": true },
   "sources": {
     "editor": {
-      "revision": "8be8f86075ad93df038610d82b3ac6d99329957d",
+      "revision": "10950c83cb6d964aadbcf4036af67c6484c1341d",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "package": {
-      "revision": "a33f1b9dc0d752d422bf772ea5a94ab8cd95f06a",
+      "revision": "e62e4617e4ba16cb99234048b82999760beaaf82",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "symbol": {
-      "revision": "a33f1b9dc0d752d422bf772ea5a94ab8cd95f06a",
+      "revision": "e62e4617e4ba16cb99234048b82999760beaaf82",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "language-javascript": {
-      "revision": "ae2e6968e3a349fb4d09ce53e339a0f8cce903aa",
+      "revision": "721d40ef20e4ffda4125b375f50c908541fa7c08",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "one-theme": {
-      "revision": "7fbd047a87ecf1367c896b19ff270cdc28d319f7",
+      "revision": "45b22049e87256e9327beb0b350e67fe81d7fc81",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "symbol-tree-sitter": {
-      "revision": "4cc0eacab5ff6c5b1c804f270ff148ffd6f2ea5d",
+      "revision": "b33e55e2afdd5f92209bd36b06d0b899f8316c0c",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
@@ -65,7 +66,7 @@
       "label": "Browse the functions and symbols of a JavaScript file.",
       "width": 1100,
       "height": 730,
-      "sha256": "e6ebd46927a291a42eda7ab18a1d9550f1b3285e64a314705ac0212f7e3025be"
+      "sha256": "04e2be546ee8873874585ade53c57a596fcb912289a71e2a5987aeafc658bc72"
     }
   ]
 }
