@@ -345,7 +345,7 @@ describe("symbol registry", () => {
     expect(replacement[0].position.isEqual([2, 0])).toBe(true);
   });
 
-  it("assembles ordinary lexical hierarchies in linear containment work", () => {
+  it("assembles ordinary lexical hierarchies in linear containment work", async () => {
     const count = 1000;
     const symbols = [];
     for (let index = 0; index < count; index++) {
@@ -357,7 +357,7 @@ describe("symbol registry", () => {
     }
     spyOn(Range.prototype, "containsRange").and.callThrough();
 
-    let tree = registry.buildFileSymbolTree(symbols);
+    let tree = await registry.buildFileSymbolTree(symbols);
 
     expect(tree.length).toBe(1);
     expect(Range.prototype.containsRange.calls.count()).toBeLessThan(count * 2);
@@ -383,8 +383,8 @@ describe("symbol registry", () => {
     expect(provider.getDocumentSymbols).toHaveBeenCalledTimes(1);
   });
 
-  it("uses the latest matching name or short name for context", () => {
-    let tree = registry.buildFileSymbolTree([
+  it("uses the latest matching name or short name for context", async () => {
+    let tree = await registry.buildFileSymbolTree([
       {
         name: "Old",
         shortName: "Scope",
@@ -408,8 +408,8 @@ describe("symbol registry", () => {
     expect(tree[1].children.map((symbol) => symbol.name)).toEqual(["child"]);
   });
 
-  it("preserves equal-range and non-monotonic-range parent semantics", () => {
-    let equalTree = registry.buildFileSymbolTree([
+  it("preserves equal-range and non-monotonic-range parent semantics", async () => {
+    let equalTree = await registry.buildFileSymbolTree([
       { name: "first", position: new Point(0, 0), range: new Range([0, 0], [10, 0]) },
       { name: "second", position: new Point(0, 0), range: new Range([0, 0], [10, 0]) },
       { name: "child", position: new Point(1, 0), range: new Range([1, 0], [2, 0]) },
@@ -418,13 +418,104 @@ describe("symbol registry", () => {
     expect(equalTree[1].children).toEqual([]);
 
     spyOn(registry, "buildFileSymbolTreeByScan").and.callThrough();
-    let irregularTree = registry.buildFileSymbolTree([
+    let irregularTree = await registry.buildFileSymbolTree([
       { name: "narrow", position: new Point(0, 0), range: new Range([5, 0], [20, 0]) },
       { name: "wide", position: new Point(1, 0), range: new Range([0, 0], [30, 0]) },
       { name: "child", position: new Point(2, 0), range: new Range([6, 0], [7, 0]) },
     ]);
     expect(registry.buildFileSymbolTreeByScan).toHaveBeenCalledTimes(1);
     expect(irregularTree[0].children.map((symbol) => symbol.name)).toEqual(["child"]);
+  });
+
+  it("keeps peek passive while a large hierarchy is being prepared", async () => {
+    const supplied = Array.from({ length: 10000 }, (_, row) => ({
+      name: `symbol-${row}`,
+      position: [row, 0],
+    }));
+    registry.addDocumentProviders(makeProvider({ getDocumentSymbols: () => supplied }));
+    await registry.getFileSymbols(editor);
+    spyOn(registry, "buildFileSymbolTree").and.callThrough();
+    expect(registry.peekFileSymbolTree(editor)).toBeNull();
+    expect(registry.buildFileSymbolTree).not.toHaveBeenCalled();
+    const first = registry.getFileSymbolTree(editor);
+    const second = registry.getFileSymbolTree(editor);
+    await Promise.resolve();
+    expect(registry.peekFileSymbolTree(editor)).toBeNull();
+    const [tree, shared] = await Promise.all([first, second]);
+    expect(tree.length).toBe(supplied.length);
+    expect(shared).toBe(tree);
+    expect(registry.peekFileSymbolTree(editor)).toBe(tree);
+    expect(registry.buildFileSymbolTree).toHaveBeenCalledTimes(1);
+  });
+
+  it("discards document normalization interrupted by a new edit", async () => {
+    spyOn(editor.getBuffer(), "debouncedEmitDidStopChangingEvent");
+    registry.addDocumentProviders(
+      makeProvider({
+        getDocumentSymbols: () =>
+          Array.from({ length: 10000 }, (_, row) => ({ name: `s-${row}`, position: [row, 0] })),
+      }),
+    );
+    const normalize = registry.normalizeSymbol;
+    let scheduled = false;
+    spyOn(registry, "normalizeSymbol").and.callFake(function (...args) {
+      if (!scheduled) {
+        scheduled = true;
+        setImmediate(() => editor.insertText(" "));
+      }
+      return normalize.apply(this, args);
+    });
+    expect(await registry.getFileSymbols(editor)).toBeNull();
+    expect(registry.peekFileSymbols(editor)).toBeNull();
+    expect(registry.normalizeSymbol.calls.count()).toBeLessThan(10000);
+  });
+
+  it("discards an interrupted hierarchy without publishing a partial tree", async () => {
+    spyOn(editor.getBuffer(), "debouncedEmitDidStopChangingEvent");
+    registry.addDocumentProviders(
+      makeProvider({
+        getDocumentSymbols: () =>
+          Array.from({ length: 10000 }, (_, row) => ({ name: `s-${row}`, position: [row, 0] })),
+      }),
+    );
+    await registry.getFileSymbols(editor);
+    const build = registry.buildFileSymbolTree;
+    spyOn(registry, "buildFileSymbolTree").and.callFake((symbols, options) =>
+      build.call(registry, symbols, {
+        ...options,
+        yieldTask: async () => editor.insertText(" "),
+      }),
+    );
+    expect(await registry.getFileSymbolTree(editor)).toBeNull();
+    expect(registry.peekFileSymbols(editor)).toBeNull();
+    expect(registry.peekFileSymbolTree(editor)).toBeNull();
+    expect(registry.trackedBundles.get(editor).tree).toBeNull();
+  });
+
+  it("rebuilds an unchanged source hierarchy after switching away during preparation", async () => {
+    registry.addDocumentProviders(
+      makeProvider({
+        packageName: "source-a",
+        getDocumentSymbols: () =>
+          Array.from({ length: 10000 }, (_, row) => ({ name: `s-${row}`, position: [row, 0] })),
+      }),
+      makeProvider({ packageName: "source-b" }),
+    );
+    await registry.setDocumentSource(editor, "source-a");
+    const flat = await registry.getFileSymbols(editor);
+    const build = registry.buildFileSymbolTree;
+    spyOn(registry, "buildFileSymbolTree").and.callFake((symbols, options) =>
+      build.call(registry, symbols, {
+        ...options,
+        yieldTask: () => registry.setDocumentSource(editor, "source-b"),
+      }),
+    );
+    expect(await registry.getFileSymbolTree(editor)).toBeNull();
+    registry.buildFileSymbolTree.and.callThrough();
+    await registry.setDocumentSource(editor, "source-a");
+    expect(await registry.getFileSymbols(editor)).toBe(flat);
+    expect((await registry.getFileSymbolTree(editor)).length).toBe(flat.length);
+    expect(registry.buildFileSymbolTree).toHaveBeenCalledTimes(2);
   });
 
   it("aborts the in-flight run on invalidation and resolves it null", async () => {
