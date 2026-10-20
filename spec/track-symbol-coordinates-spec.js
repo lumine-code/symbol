@@ -2,12 +2,127 @@ const { Point, Range } = require("lumine");
 const trackSymbolCoordinates = require("../lib/track-symbol-coordinates");
 
 describe("Symbol coordinate batches", () => {
+  function prepare(symbols) {
+    for (const _ of trackSymbolCoordinates.prepare(symbols)) {
+      // The registry advances this generator cooperatively before publication.
+    }
+    return symbols;
+  }
+
   function clone(symbols) {
     return symbols.map(({ position, range }) => ({
       position: position.copy(),
       range: range.copy(),
     }));
   }
+
+  it("skips distant blocks without losing endpoints of enclosing ranges", () => {
+    const symbols = Array.from({ length: 8192 }, (_, row) => ({
+      position: new Point(row, 3),
+      range: new Range([row, 0], [row, 8]),
+    }));
+    // Unordered endpoints must be included even in a distant position block.
+    symbols[0].range = new Range([0, 0], [8191, 10]);
+    symbols[2].range = new Range([8191, 1], [8191, 4]);
+    const expected = clone(symbols);
+    const changes = [
+      {
+        oldRange: new Range([8191, 2], [8191, 2]),
+        newRange: new Range([8191, 2], [8191, 4]),
+        oldText: "",
+        newText: "🦉",
+      },
+    ];
+    trackSymbolCoordinates(expected, changes);
+    prepare(symbols);
+    const position = symbols[8191].position;
+    const range = symbols[8191].range;
+    spyOn(Point.prototype, "compare").and.callThrough();
+    trackSymbolCoordinates(symbols, changes);
+    expect(Point.prototype.compare.calls.count()).toBeLessThan(2000);
+    expect(symbols).toEqual(expected);
+    expect(symbols[8191].position).toBe(position);
+    expect(symbols[8191].range).toBe(range);
+  });
+
+  it("matches unindexed tracking through mixed edits and subsequent queries of shifted blocks", () => {
+    let seed = 0x71ab239;
+    const random = (limit) => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed % limit;
+    };
+    const symbols = prepare(
+      Array.from({ length: 1024 }, (_, row) => ({
+        position: new Point(row, random(12)),
+        range:
+          row % 3
+            ? new Range([row, random(6)], [row + random(20), 12])
+            : new Range([row, 3], [row, 3]),
+      })),
+    );
+    const expected = clone(symbols);
+    for (let step = 0; step < 160; step++) {
+      const changes = Array.from({ length: step % 4 === 0 ? 20 : 1 }, () => {
+        const row = random(1040),
+          column = random(12);
+        const bulk = step % 4 === 0;
+        return {
+          oldRange: new Range([row, column], [row + (bulk ? 0 : random(6)), column + 3]),
+          newRange: new Range([row, column], [row + (bulk ? 0 : random(4)), column + 2]),
+          oldText: "old",
+          newText: "🦉",
+        };
+      });
+      for (const change of changes) trackSymbolCoordinates(expected, [change]);
+      trackSymbolCoordinates(symbols, changes);
+      expect(symbols).toEqual(expected);
+    }
+  });
+
+  it("rejects unaffected symbols inside blocks crossed by long enclosing ranges", () => {
+    const symbols = prepare(
+      Array.from({ length: 8192 }, (_, row) => ({
+        position: new Point(row, 3),
+        range: new Range([row, 0], [row % 128 === 0 ? 8191 : row, 20]),
+      })),
+    );
+    const expected = clone(symbols);
+    const changes = [
+      {
+        oldRange: new Range([8190, 3], [8191, 3]),
+        newRange: new Range([8190, 3], [8190, 3]),
+        oldText: "\n",
+        newText: "",
+      },
+    ];
+    trackSymbolCoordinates(expected, changes);
+    spyOn(Point.prototype, "compare").and.callThrough();
+    trackSymbolCoordinates(symbols, changes);
+    expect(Point.prototype.compare.calls.count()).toBeLessThan(3000);
+    expect(symbols).toEqual(expected);
+  });
+
+  it("does not publish an incomplete index when preparation is cancelled", () => {
+    const symbols = Array.from({ length: 512 }, (_, row) => ({
+      position: new Point(row, 1),
+      range: new Range([row, 0], [row, 8]),
+    }));
+    const expected = clone(symbols);
+    const preparation = trackSymbolCoordinates.prepare(symbols);
+    preparation.next();
+    preparation.return();
+    const changes = [
+      {
+        oldRange: new Range([400, 0], [400, 0]),
+        newRange: new Range([400, 0], [401, 0]),
+        oldText: "",
+        newText: "\n",
+      },
+    ];
+    trackSymbolCoordinates(expected, changes);
+    trackSymbolCoordinates(symbols, changes);
+    expect(symbols).toEqual(expected);
+  });
 
   it("matches sequential tracking for bulk column edits, boundaries and empty ranges", () => {
     const symbols = Array.from({ length: 300 }, (_, row) => ({

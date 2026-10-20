@@ -2,7 +2,6 @@ const path = require("path");
 const { Emitter, Point, Range } = require("lumine");
 const temp = require("@lumine-code/fs-temp");
 
-const Registry = require("../lib/registry");
 const ProviderBroker = require("../lib/provider-broker");
 
 function makeProvider(overrides = {}) {
@@ -43,6 +42,9 @@ describe("symbol registry", () => {
     lumine.config.set("symbol.providerTimeout", 1000);
     const storage = (await lumine.packages.activatePackage("symbol")).mainModule.workspaceState;
     await storage.update("documentSources", undefined);
+    // Lifecycle specs can unload the package before this suite. Keep this
+    // isolated registry and any spied helpers in the same module generation.
+    const Registry = require("../lib/registry");
     registry = new Registry(storage);
     editor = await lumine.workspace.open();
   });
@@ -509,6 +511,31 @@ describe("symbol registry", () => {
     expect(await registry.getFileSymbols(editor)).toBeNull();
     expect(registry.peekFileSymbols(editor)).toBeNull();
     expect(registry.normalizeSymbol.calls.count()).toBeLessThan(10000);
+  });
+
+  it("does not publish coordinates prepared for a revision invalidated during indexing", async () => {
+    spyOn(editor.getBuffer(), "debouncedEmitDidStopChangingEvent");
+    registry.addDocumentProviders(
+      makeProvider({
+        getDocumentSymbols: () =>
+          Array.from({ length: 512 }, (_, row) => ({ name: `s-${row}`, position: [row, 0] })),
+      }),
+    );
+    const track = require("../lib/track-symbol-coordinates");
+    const prepare = track.prepare;
+    spyOn(track, "prepare").and.callFake(function* (symbols) {
+      const iterator = prepare(symbols);
+      try {
+        yield iterator.next().value;
+        editor.insertText(" ");
+        return yield* iterator;
+      } finally {
+        iterator.return();
+      }
+    });
+    expect(await registry.getFileSymbols(editor)).toBeNull();
+    expect(registry.peekFileSymbols(editor)).toBeNull();
+    expect(registry.trackedBundles.has(editor)).toBeFalse();
   });
 
   it("discards an interrupted hierarchy without publishing a partial tree", async () => {
