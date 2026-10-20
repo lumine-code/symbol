@@ -1044,8 +1044,7 @@ describe("symbol", () => {
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
 
         symbolsView = getDocumentSymbolsView();
-        symbolsView.selectList.getQueryEditor().setText("quicksort");
-        await getOrScheduleUpdatePromise();
+        await symbolsView.selectList.setQuery("quicksort");
         let resultView = symbolsView.getElement().querySelector(".selected");
         let matches = resultView.querySelectorAll(".character-match");
         expect(matches.length).toBe(1);
@@ -1057,8 +1056,7 @@ describe("symbol", () => {
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getDocumentSymbolsView();
 
-        symbolsView.selectList.getQueryEditor().setText("quick");
-        await getOrScheduleUpdatePromise();
+        await symbolsView.selectList.setQuery("quick");
 
         let resultView = symbolsView.getElement().querySelector(".selected");
         let matches = resultView.querySelectorAll(".character-match");
@@ -1071,8 +1069,7 @@ describe("symbol", () => {
         await dispatchAndWaitForChoices("symbol:toggle-file-symbols");
         symbolsView = getDocumentSymbolsView();
 
-        symbolsView.selectList.getQueryEditor().setText("quicort");
-        await getOrScheduleUpdatePromise();
+        await symbolsView.selectList.setQuery("quicort");
 
         let resultView = symbolsView.getElement().querySelector(".selected");
         let matches = resultView.querySelectorAll(".character-match");
