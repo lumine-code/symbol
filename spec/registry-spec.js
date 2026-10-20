@@ -51,6 +51,47 @@ describe("symbol registry", () => {
     registry.destroy();
   });
 
+  it("does not discard a revision fetched before the stop-changing debounce", async () => {
+    const provider = makeProvider();
+    spyOn(provider, "getDocumentSymbols").and.callThrough();
+    registry.addDocumentProviders(provider);
+    await registry.getFileSymbols(editor);
+    editor.insertText("x");
+    const fresh = await registry.getFileSymbols(editor);
+    const updated = jasmine.createSpy("updated");
+    const subscription = registry.onDidInvalidateFileSymbols(updated);
+    editor.getBuffer().emitDidStopChangingEvent();
+    expect(updated).toHaveBeenCalled();
+    subscription.dispose();
+    expect(await registry.getFileSymbols(editor)).toBe(fresh);
+    expect(provider.getDocumentSymbols.calls.count()).toBe(2);
+    registry.invalidateEditor(editor);
+    await registry.getFileSymbols(editor);
+    expect(provider.getDocumentSymbols.calls.count()).toBe(3);
+  });
+
+  it("joins a current in-flight request across the stop-changing debounce", async () => {
+    let resolve;
+    const provider = makeProvider({
+      getDocumentSymbols: () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    });
+    spyOn(provider, "getDocumentSymbols").and.callThrough();
+    registry.addDocumentProviders(provider);
+    editor.insertText("x");
+    const pending = registry.getFileSymbols(editor);
+    await conditionPromise(() => resolve);
+    const signal = registry.inflight.get(editor).controller.signal;
+    editor.getBuffer().emitDidStopChangingEvent();
+    expect(signal.aborted).toBeFalse();
+    const second = registry.getFileSymbols(editor);
+    resolve([{ name: "current", position: [0, 0] }]);
+    expect(await second).toBe(await pending);
+    expect(provider.getDocumentSymbols.calls.count()).toBe(1);
+  });
+
   it("shares one in-flight run and caches the completed result", async () => {
     let calls = 0;
     let resolveSymbols;
