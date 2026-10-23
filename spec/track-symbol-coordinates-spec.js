@@ -1,4 +1,4 @@
-const { Point, Range } = require("lumine");
+const { Point, Range, TextBuffer } = require("lumine");
 const trackSymbolCoordinates = require("../lib/track-symbol-coordinates");
 
 describe("Symbol coordinate batches", () => {
@@ -194,5 +194,149 @@ describe("Symbol coordinate batches", () => {
     trackSymbolCoordinates(symbols, changes);
     expect(symbols[0].position).toEqual(new Point(2, 2));
     expect(symbols[0].range).toEqual(new Range([2, 2], [2, 2]));
+  });
+
+  for (const direction of ["ascending", "descending"])
+    it(`matches sequential tracking for ${direction} disjoint multiline edits and refreshed block bounds`, () => {
+      const original = Array.from({ length: 32 }, (_, index) => {
+        const row = 16 + index * 8;
+        return {
+          oldRange: new Range([row, 2], [row + (index % 3), 5]),
+          newRange: new Range([row, 2], [row + (index % 4), 3]),
+          oldText: "old",
+          newText: "new",
+        };
+      });
+      let shift = 0;
+      const changes =
+        direction === "descending"
+          ? original.toReversed()
+          : original.map((change) => {
+              const current = {
+                ...change,
+                oldRange: new Range(
+                  [change.oldRange.start.row + shift, 2],
+                  [change.oldRange.end.row + shift, 5],
+                ),
+                newRange: new Range(
+                  [change.newRange.start.row + shift, 2],
+                  [change.newRange.end.row + shift, 3],
+                ),
+              };
+              shift += change.newRange.end.row - change.oldRange.end.row;
+              return current;
+            });
+      const symbols = Array.from({ length: 512 }, (_, row) => ({
+        position: new Point(row, row % 7),
+        range:
+          row % 5 === 0
+            ? new Range([row, 2], [row, 2])
+            : new Range([row, row % 6], [row + (row % 11), 7]),
+      }));
+      for (const change of original) {
+        for (const boundary of [change.oldRange.start, change.oldRange.end])
+          symbols.push({
+            position: boundary.copy(),
+            range: new Range(boundary.copy(), boundary.copy()),
+          });
+        symbols.push({ position: change.oldRange.start.copy(), range: change.oldRange.copy() });
+      }
+      symbols[0].range = new Range([0, 0], [511, 10]);
+      const expected = clone(symbols);
+      const identities = symbols.map((symbol) => [symbol.position, symbol.range]);
+      prepare(symbols);
+      for (const change of changes) trackSymbolCoordinates(expected, [change]);
+      trackSymbolCoordinates(symbols, changes);
+      expect(symbols).toEqual(expected);
+      for (let index = 0; index < symbols.length; index++) {
+        expect(symbols[index].position).toBe(identities[index][0]);
+        expect(symbols[index].range).toBe(identities[index][1]);
+      }
+      const followup = [
+        {
+          oldRange: new Range([500, 0], [500, 0]),
+          newRange: new Range([500, 0], [501, 0]),
+          oldText: "",
+          newText: "\n",
+        },
+      ];
+      trackSymbolCoordinates(expected, followup);
+      trackSymbolCoordinates(symbols, followup);
+      expect(symbols).toEqual(expected);
+    });
+
+  it("shifts a distant symbol suffix once for a large multiline batch", () => {
+    const symbols = prepare(
+      Array.from({ length: 512 }, (_, index) => ({
+        position: new Point(10000 + index, 3),
+        range: new Range([10000 + index, 0], [10000 + index, 8]),
+      })),
+    );
+    const changes = Array.from({ length: 128 }, (_, index) => {
+      const row = (128 - index) * 8;
+      return {
+        oldRange: new Range([row, 0], [row + 2, 3]),
+        newRange: new Range([row, 0], [row, 0]),
+        oldText: "x\ny\nz",
+        newText: "",
+      };
+    });
+    const expected = clone(symbols);
+    for (const change of changes) trackSymbolCoordinates(expected, [change]);
+    let writes = 0;
+    for (const { position, range } of symbols)
+      for (const point of [position, range.start, range.end]) {
+        let row = point.row;
+        Object.defineProperty(point, "row", {
+          configurable: true,
+          enumerable: true,
+          get: () => row,
+          set: (value) => {
+            row = value;
+            writes++;
+          },
+        });
+      }
+    trackSymbolCoordinates(symbols, changes);
+    expect(symbols).toEqual(expected);
+    expect(writes).toBeLessThanOrEqual(symbols.length * 3);
+  });
+
+  it("tracks real independent multiline edits and their undo/redo application batches", () => {
+    const buffer = new TextBuffer({ text: "line text\n".repeat(4000) });
+    const symbols = prepare(
+      Array.from({ length: 4000 }, (_, row) => ({
+        position: new Point(row, 5),
+        range: new Range([row, 0], [row, 9]),
+      })),
+    );
+    const expected = clone(symbols);
+    let batches = 0;
+    const subscription = buffer.onDidApplyChanges(({ changes }) => {
+      batches++;
+      for (const change of changes) trackSymbolCoordinates(expected, [change]);
+      trackSymbolCoordinates(symbols, changes);
+      expect(symbols).toEqual(expected);
+    });
+    try {
+      buffer.setTextInIndependentRanges(
+        Array.from({ length: 128 }, (_, index) => {
+          const row = 10 + index * 25;
+          return {
+            range: [
+              [row, 4],
+              [row, 4],
+            ],
+            text: "first\n  second\n  third",
+          };
+        }),
+      );
+      buffer.undo();
+      buffer.redo();
+      expect(batches).toBe(3);
+    } finally {
+      subscription.dispose();
+      buffer.destroy();
+    }
   });
 });
