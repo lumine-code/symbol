@@ -105,6 +105,19 @@ describe("document symbol source selector", () => {
     listView = null;
   });
 
+  it("shows a source-loading failure and clears it after recovery", async () => {
+    spyOn(registry, "listDocumentSources").and.rejectWith(new Error("backend unavailable"));
+    listView = new SourceListView(registry);
+    await listView.toggle(editor);
+    expect(listView.selectList.getStatus()).toEqual({
+      type: "error",
+      message: "Unable to list symbol sources.",
+    });
+    registry.listDocumentSources.and.resolveTo(registry.sources);
+    await listView.refresh();
+    expect(listView.selectList.getStatus()).toBeNull();
+  });
+
   it("places the source directly after the grammar tile on either side", async () => {
     statusView = new SourceStatusView(statusBar, registry, () => {});
     await render();
@@ -752,8 +765,7 @@ describe("document symbol source selector integration", () => {
   }
 
   beforeEach(async () => {
-    jasmine.unspy(Date, "now");
-    jasmine.unspy(global, "setTimeout");
+    jasmine.useRealClock();
     jasmine.attachToDOM(lumine.views.getView(lumine.workspace));
     lumine.config.set("grammar-selector.showOnRightSideOfStatusBar", true);
     lumine.config.set("symbol.showStatusBarItem", true);
@@ -983,14 +995,14 @@ describe("document symbol source selector integration", () => {
 
       const sources = await service.listDocumentSources(editor);
       expect(sources.find((source) => source.id === "symbol-tree-sitter").execution).toBe("local");
-      const getCaptures = editor.getGrammarQueryCaptureGroups.bind(editor);
+      const analyzeSyntax = editor.analyzeSyntax.bind(editor);
       let release, started;
       const captureStarted = new Promise((resolve) => (started = resolve));
       const captureHold = new Promise((resolve) => (release = resolve));
-      spyOn(editor, "getGrammarQueryCaptureGroups").and.callFake(async (query, options) => {
-        started(options);
+      spyOn(editor, "analyzeSyntax").and.callFake(async (...args) => {
+        started(args[3]);
         await captureHold;
-        return getCaptures(query, options);
+        return analyzeSyntax(...args);
       });
       spyOn(console, "error");
       languageProvider.getDocumentSymbols.calls.reset();
@@ -1038,7 +1050,8 @@ describe("document symbol source selector integration", () => {
       expect(flat?.every((symbol) => symbol.providerId === "symbol-tree-sitter")).toBe(true);
       expect(service.peekFileSymbols(editor)).toBe(flat);
       expect(document.querySelector(".symbol-source-status").textContent).toBe("TS");
-      expect(editor.getGrammarQueryCaptureGroups).toHaveBeenCalledTimes(1);
+      expect(editor.analyzeSyntax).toHaveBeenCalledTimes(1);
+      expect(editor.analyzeSyntax.calls.first().args[1]).toBe("symbols");
     });
   }
 });
