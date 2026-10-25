@@ -10,6 +10,11 @@ beforeEach(() => {
 });
 
 describe("Symbol command editor targets", () => {
+  // Analysis fixtures use a real grammar; None deliberately disables this package.
+  beforeEach(async () => {
+    await lumine.packages.activatePackage("language-text");
+  });
+
   let main, first, second, scratch, temporary, leases, calls;
   beforeEach(async () => {
     jasmine.useRealClock();

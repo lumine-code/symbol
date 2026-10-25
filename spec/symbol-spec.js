@@ -102,6 +102,11 @@ function registerProvider(...args) {
 }
 
 describe("symbol", () => {
+  // Analysis fixtures use a real grammar; None deliberately disables this package.
+  beforeEach(async () => {
+    await lumine.packages.activatePackage("language-text");
+  });
+
   let symbolsView, activationPromise, editor, directory, mainModule, languageMode, iconRegistration;
 
   beforeEach(async () => {

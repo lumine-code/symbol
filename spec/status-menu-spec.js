@@ -1,4 +1,9 @@
 describe("symbol source status action menu", () => {
+  // Analysis fixtures use a real grammar; None deliberately disables this package.
+  beforeEach(async () => {
+    await lumine.packages.activatePackage("language-text");
+  });
+
   let main, view, lease, editor;
   beforeEach(async () => {
     jasmine.attachToDOM(lumine.workspace.getElement());

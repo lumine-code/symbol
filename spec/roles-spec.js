@@ -20,6 +20,11 @@ const workspaceProvider = (name, searchWorkspaceSymbols) => ({
 });
 
 describe("separate symbol provider roles", () => {
+  // Analysis fixtures use a real grammar; None deliberately disables this package.
+  beforeEach(async () => {
+    await lumine.packages.activatePackage("language-text");
+  });
+
   let registry, editor, root;
   beforeEach(async () => {
     jasmine.useRealClock();

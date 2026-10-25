@@ -3,6 +3,11 @@ const fs = require("@lumine-code/fs-plus");
 const { CompositeDisposable } = require("lumine");
 
 describe("symbol file opening actions", () => {
+  // Analysis fixtures use a real grammar; None deliberately disables this package.
+  beforeEach(async () => {
+    await lumine.packages.activatePackage("language-text");
+  });
+
   let view, source, pane, stack, leases, external;
   const filename = path.join(__dirname, "fixtures", "js", "sample.js");
   const tag = { name: "Selected Symbol", path: filename, position: { row: 2, column: 1 } };

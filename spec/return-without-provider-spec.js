@@ -1,4 +1,9 @@
 describe("Return from a definition after its provider disappears", () => {
+  // Analysis fixtures use a real grammar; None deliberately disables this package.
+  beforeEach(async () => {
+    await lumine.packages.activatePackage("language-text");
+  });
+
   let main, editor, provider;
   async function waitForPosition(row, column) {
     const deadline = Date.now() + 1000;

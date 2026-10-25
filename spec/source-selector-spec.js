@@ -77,6 +77,11 @@ function enterIn(list, { alt = false } = {}) {
 }
 
 describe("document symbol source selector", () => {
+  // Analysis fixtures use a real grammar; None deliberately disables this package.
+  beforeEach(async () => {
+    await lumine.packages.activatePackage("language-text");
+  });
+
   let editor, registry, statusView, listView, statusBar;
 
   beforeEach(async () => {
@@ -765,6 +770,8 @@ describe("document symbol source selector integration", () => {
   }
 
   beforeEach(async () => {
+    const textGrammarPackage = await lumine.packages.activatePackage("language-text");
+    await textGrammarPackage.resourceLoadPromise;
     jasmine.useRealClock();
     jasmine.attachToDOM(lumine.views.getView(lumine.workspace));
     lumine.config.set("grammar-selector.showOnRightSideOfStatusBar", true);

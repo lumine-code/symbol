@@ -4,6 +4,11 @@ const os = require("node:os");
 const path = require("node:path");
 
 describe("Symbol service and picker lifetimes", () => {
+  // Analysis fixtures use a real grammar; None deliberately disables this package.
+  beforeEach(async () => {
+    await lumine.packages.activatePackage("language-text");
+  });
+
   let main, a, b, targetEditor, directory, file, leases;
   const symbols = (name) => [{ name, position: [2, 0] }];
   function provider(getDocumentSymbols = (editor) => symbols(editor === a ? "A" : "B")) {

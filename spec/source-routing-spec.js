@@ -10,6 +10,11 @@ const sourceProvider = (id, score, load = () => [{ name: id, position: [0, 0] }]
 });
 
 describe("document source routing", () => {
+  // Analysis fixtures use a real grammar; None deliberately disables this package.
+  beforeEach(async () => {
+    await lumine.packages.activatePackage("language-text");
+  });
+
   let registry, editor, syntax, semantic, detached, storage;
   beforeEach(async () => {
     jasmine.useRealClock();

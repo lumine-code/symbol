@@ -31,6 +31,11 @@ function makeProvider(overrides = {}) {
 }
 
 describe("symbol registry", () => {
+  // Analysis fixtures use a real grammar; None deliberately disables this package.
+  beforeEach(async () => {
+    await lumine.packages.activatePackage("language-text");
+  });
+
   let registry, editor;
 
   beforeEach(async () => {
@@ -51,6 +56,35 @@ describe("symbol registry", () => {
 
   afterEach(() => {
     registry.destroy();
+  });
+
+  it("does not request sources or definitions for None and resumes after grammar selection", async () => {
+    const grammar = editor.getGrammar();
+    const provider = makeProvider();
+    spyOn(provider, "getDocumentSymbolSources").and.callThrough();
+    spyOn(provider, "getDocumentSymbols").and.callThrough();
+    const definitions = {
+      name: "Definitions",
+      packageName: "null-grammar-definitions-spec",
+      canProvideDefinitions: jasmine.createSpy("capability").and.returnValue(1),
+      getDefinitions: jasmine.createSpy("definitions").and.returnValue([]),
+    };
+    registry.addDocumentProviders(provider);
+    registry.addDefinitionProviders(definitions);
+    await registry.getFileSymbols(editor);
+    expect(registry.peekFileSymbols(editor).length).toBe(1);
+    editor.setGrammar(lumine.grammars.nullGrammar);
+    provider.getDocumentSymbolSources.calls.reset();
+    provider.getDocumentSymbols.calls.reset();
+    expect(await registry.getFileSymbols(editor)).toBeNull();
+    expect(await registry.findDefinitions(editor)).toBeNull();
+    expect(registry.peekFileSymbols(editor)).toBeNull();
+    expect(provider.getDocumentSymbolSources).not.toHaveBeenCalled();
+    expect(provider.getDocumentSymbols).not.toHaveBeenCalled();
+    expect(definitions.canProvideDefinitions).not.toHaveBeenCalled();
+    editor.setGrammar(grammar);
+    expect((await registry.getFileSymbols(editor)).length).toBe(1);
+    expect(provider.getDocumentSymbols).toHaveBeenCalledTimes(1);
   });
 
   it("does not discard a revision fetched before the stop-changing debounce", async () => {
