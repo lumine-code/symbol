@@ -255,6 +255,21 @@ describe("symbol", () => {
       }
     });
 
+    it("rejects oversized symbol prefills from range metadata before reading text", () => {
+      lumine.config.set("symbol.prefillSelectedText", true);
+      const range = spyOn(editor.getLastSelection(), "getBufferRange").and.returnValue({
+        start: { row: 0, column: 0 },
+        end: { row: 0, column: 512 * 1024 * 1024 },
+      });
+      const read = spyOn(editor, "getSelectedText").and.throwError("full selection read");
+      try {
+        expect(mainModule.getSelectedTextIfEnabled({ target: editor.getElement() })).toBe("");
+        expect(read).not.toHaveBeenCalled();
+      } finally {
+        range.and.callThrough();
+      }
+    });
+
     it("does not prefill the query field if `prefillSelectedText` is `false`", async () => {
       lumine.config.set("symbol.prefillSelectedText", false);
       registerProvider(DummyProvider);

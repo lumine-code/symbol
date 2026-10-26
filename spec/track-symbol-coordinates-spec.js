@@ -2,6 +2,47 @@ const { Point, Range, TextBuffer } = require("lumine");
 const trackSymbolCoordinates = require("../lib/track-symbol-coordinates");
 
 describe("Symbol coordinate batches", () => {
+  for (const count of [1, 20]) {
+    it(`tracks ${count} source-backed edits without invoking lazy text getters`, () => {
+      const symbols = [
+        { position: new Point(count + 1, 3), range: new Range([count + 1, 0], [count + 1, 8]) },
+      ];
+      const changes = Array.from({ length: count }, (_, index) => ({
+        oldRange: new Range([index, 0], [index, 0]),
+        newRange: new Range([index, 0], [index + 1, 0]),
+        oldTextSource: { length: 0 },
+        newTextSource: { length: 512 * 1024 * 1024 },
+        get oldText() {
+          throw new Error("must not flatten removed text");
+        },
+        get newText() {
+          throw new Error("must not flatten inserted text");
+        },
+      }));
+      trackSymbolCoordinates(symbols, changes);
+      expect(symbols[0].position).toEqual(new Point(2 * count + 1, 3));
+    });
+  }
+
+  it("preserves no-op replacements using exact source equality", () => {
+    const symbols = [{ position: new Point(0, 3), range: new Range([0, 0], [0, 8]) }];
+    trackSymbolCoordinates(symbols, [
+      {
+        oldRange: new Range([0, 0], [0, 8]),
+        newRange: new Range([0, 0], [0, 8]),
+        oldTextSource: { length: 8, equals: () => true },
+        newTextSource: { length: 8 },
+        get oldText() {
+          throw new Error("must not flatten removed text");
+        },
+        get newText() {
+          throw new Error("must not flatten inserted text");
+        },
+      },
+    ]);
+    expect(symbols[0].position).toEqual(new Point(0, 3));
+  });
+
   function prepare(symbols) {
     for (const _ of trackSymbolCoordinates.prepare(symbols)) {
       // The registry advances this generator cooperatively before publication.

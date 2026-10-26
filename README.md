@@ -69,6 +69,8 @@ A language server serving embedded fragments does not automatically own the host
 
 Workspace symbols and definitions require a backend supporting the corresponding feature. Workspace search combines already-active backends, including closed files in projects they have loaded; searching does not launch additional servers or index source files itself.
 
+Selection-based query prefills use only the last selection, require one buffer line and accept at most 4,096 UTF-16 units. Larger selections leave the query unfilled instead of reading the selected document into the picker.
+
 ## Services
 
 - [`symbol.document-provider`](docs/symbol.document-provider.md): consumed to obtain symbols for the current buffer.
