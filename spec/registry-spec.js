@@ -87,6 +87,65 @@ describe("symbol registry", () => {
     expect(provider.getDocumentSymbols).toHaveBeenCalledTimes(1);
   });
 
+  it("does not invoke later source probes after a synchronous switch to None", async () => {
+    registry.addDocumentProviders(
+      makeProvider({
+        getDocumentSymbolSources() {
+          editor.setGrammar(lumine.grammars.nullGrammar);
+          return [];
+        },
+      }),
+    );
+    const probe = jasmine.createSpy("later source probe").and.returnValue([]);
+    registry.addDocumentProviders(makeProvider({ getDocumentSymbolSources: probe }));
+    expect(await registry.getFileSymbols(editor)).toBeNull();
+    expect(probe).not.toHaveBeenCalled();
+  });
+
+  it("does not invoke later definition probes after a synchronous switch to None", async () => {
+    registry.addDefinitionProviders({
+      name: "first",
+      packageName: "first",
+      getDefinitions() {
+        return [];
+      },
+      canProvideDefinitions() {
+        editor.setGrammar(lumine.grammars.nullGrammar);
+        return 1;
+      },
+    });
+    const probe = jasmine.createSpy("later definition probe").and.returnValue(1);
+    registry.addDefinitionProviders({
+      name: "second",
+      packageName: "second",
+      getDefinitions() {
+        return [];
+      },
+      canProvideDefinitions: probe,
+    });
+    expect(await registry.findDefinitions(editor)).toBeNull();
+    expect(probe).not.toHaveBeenCalled();
+  });
+
+  it("cancels public source discovery across None without reviving its old probe", async () => {
+    const grammar = editor.getGrammar();
+    let release, oldSignal;
+    const probe = jasmine.createSpy("sources").and.callFake((_editor, { signal }) => {
+      oldSignal = signal;
+      return new Promise((resolve) => (release = resolve));
+    });
+    registry.addDocumentProviders(makeProvider({ getDocumentSymbolSources: probe }));
+    const pending = registry.listDocumentSources(editor);
+    await Promise.resolve();
+    editor.setGrammar(lumine.grammars.nullGrammar);
+    editor.setGrammar(grammar);
+    expect(oldSignal.aborted).toBeTrue();
+    probe.and.returnValue([]);
+    expect(await registry.listDocumentSources(editor)).toEqual([]);
+    release([]);
+    expect(await pending).toEqual([]);
+  });
+
   it("does not discard a revision fetched before the stop-changing debounce", async () => {
     const provider = makeProvider();
     spyOn(provider, "getDocumentSymbols").and.callThrough();
