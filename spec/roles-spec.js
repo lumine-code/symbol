@@ -51,6 +51,33 @@ describe("separate symbol provider roles", () => {
     expect(treeSitter.getDocumentSymbols).not.toHaveBeenCalled();
     expect(lsp.getDocumentSymbols).toHaveBeenCalledTimes(1);
   });
+  it("retires pending workspace symbol resolution when its provider goes away", async () => {
+    let started;
+    const ready = new Promise((resolve) => {
+      started = resolve;
+    });
+    let complete;
+    const finish = new Promise((resolve) => {
+      complete = resolve;
+    });
+    const resolveLocation = jasmine.createSpy("resolveLocation").and.callFake(({ signal }) => {
+      started(signal);
+      return finish;
+    });
+    const source = { name: "Lazy", path: path.join(root, "source.js"), resolveLocation };
+    const provider = workspaceProvider("workspace", () => [source]);
+    registry.addWorkspaceProviders(provider);
+    const [item] = await registry.searchWorkspace();
+    expect(resolveLocation).not.toHaveBeenCalled();
+    const resolving = registry.resolveWorkspaceSymbol(item);
+    const signal = await ready;
+    registry.removeWorkspaceProviders(provider);
+    expect(signal.aborted).toBe(true);
+    expect(await resolving).toBeNull();
+    complete({ ...source, position: [2, 3] });
+    expect(await registry.resolveWorkspaceSymbol(item)).toBeNull();
+    expect(resolveLocation).toHaveBeenCalledTimes(1);
+  });
   it("honours an explicit provider preference before numerical score", async () => {
     lumine.config.set("symbol.preferCertainProviders", ["Tree-sitter"]);
     registry.addDocumentProviders(

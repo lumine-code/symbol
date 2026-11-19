@@ -44,11 +44,15 @@ interface SymbolRegistry {
     query?: string,
     options?: {
       signal?: AbortSignal;
-      onSymbols?: (symbols: NormalizedSymbol[]) => void;
+      onSymbols?: (symbols: WorkspaceSymbolResult[]) => void;
       onStatus?: (status: RequestStatus) => void;
     },
-  ): Promise<NormalizedSymbol[] | null>;
+  ): Promise<WorkspaceSymbolResult[] | null>;
   onDidInvalidateWorkspaceSymbols(callback): Disposable;
+  resolveWorkspaceSymbol(
+    symbol: DeferredWorkspaceSymbolResult,
+    request?: { signal?: AbortSignal; timeoutMs?: number },
+  ): Promise<NormalizedSymbol | null>;
   findDefinitions(
     editor: TextEditor,
     options?: {

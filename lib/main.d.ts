@@ -6,7 +6,7 @@ export type PointCompatible = Point | [number, number] | { row: number; column: 
 export type RangeCompatible =
   Range | [PointCompatible, PointCompatible] | { start: PointCompatible; end: PointCompatible };
 
-export type FileSymbol = {
+type SymbolMetadata = {
   name: string;
   shortName?: string;
   tag?: string;
@@ -17,10 +17,12 @@ export type FileSymbol = {
   cell?: number;
   directory?: string;
   file?: string;
-} & (
-  | { position: PointCompatible; range?: RangeCompatible }
-  | { position?: PointCompatible; range: RangeCompatible }
-);
+};
+export type FileSymbol = SymbolMetadata &
+  (
+    | { position: PointCompatible; range?: RangeCompatible }
+    | { position?: PointCompatible; range: RangeCompatible }
+  );
 
 export type NormalizedSymbol = FileSymbol & {
   position: Point;
@@ -29,8 +31,21 @@ export type NormalizedSymbol = FileSymbol & {
   providerId: string;
 };
 export type FileSymbolTree = NormalizedSymbol & { children: FileSymbolTree[] };
-export type WorkspaceSymbol = FileSymbol &
-  ({ path: string } | { uri: string } | { directory: string; file: string });
+type WorkspaceDestination =
+  { path: string } | { uri: string } | { directory: string; file: string };
+type LocatedWorkspaceSymbol = FileSymbol & WorkspaceDestination;
+type DeferredWorkspaceSymbol = SymbolMetadata &
+  WorkspaceDestination & {
+    resolveLocation(request: SymbolRequest): MaybePromise<LocatedWorkspaceSymbol | null>;
+  };
+export type WorkspaceSymbol = LocatedWorkspaceSymbol | DeferredWorkspaceSymbol;
+export type DeferredWorkspaceSymbolResult = SymbolMetadata &
+  WorkspaceDestination & {
+    resolveId: number;
+    providerName: string;
+    providerId: string;
+  };
+export type WorkspaceSymbolResult = NormalizedSymbol | DeferredWorkspaceSymbolResult;
 export type RequestStatus = {
   state: "ready" | "unavailable" | "starting" | "partial" | "error";
   message?: string;
@@ -76,6 +91,7 @@ export interface WorkspaceSymbolProvider extends ProviderIdentity {
     query: string,
     request: SymbolRequest & {
       paths: string[];
+      deferLocations?: boolean;
       onSymbols?: (symbols: WorkspaceSymbol[]) => void;
       onStatus?: (status: RequestStatus) => void;
     },
@@ -114,10 +130,14 @@ export interface SymbolRegistry {
     query?: string,
     options?: {
       signal?: AbortSignal;
-      onSymbols?: (symbols: NormalizedSymbol[]) => void;
+      onSymbols?: (symbols: WorkspaceSymbolResult[]) => void;
       onStatus?: (status: RequestStatus) => void;
     },
-  ): Promise<NormalizedSymbol[] | null>;
+  ): Promise<WorkspaceSymbolResult[] | null>;
+  resolveWorkspaceSymbol(
+    symbol: DeferredWorkspaceSymbolResult,
+    options?: { signal?: AbortSignal; timeoutMs?: number },
+  ): Promise<NormalizedSymbol | null>;
   onDidInvalidateWorkspaceSymbols(callback: () => void): Disposable;
   findDefinitions(
     editor: TextEditor,

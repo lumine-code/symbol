@@ -893,6 +893,28 @@ describe("symbol", () => {
       expect(searches.calls.allArgs().map(([query]) => query)).not.toContain("a");
     });
 
+    it("displays a deferred workspace symbol and resolves its position when opened", async () => {
+      const path = directory.resolve("other-file.js");
+      const resolveLocation = jasmine
+        .createSpy("resolve location")
+        .and.resolveTo({ name: "Deferred target", path, position: [6, 2] });
+      registerProvider({
+        name: "Workspace",
+        packageName: "workspace-fixture",
+        searchWorkspaceSymbols: () => [{ name: "Deferred target", path, resolveLocation }],
+      });
+      await dispatchAndWaitForChoices("symbol:toggle-project-symbols");
+      symbolsView = getDocumentSymbolsView();
+      expect(symbolsView.getElement().querySelector("li .location").textContent).toMatch(
+        /other-file\.js$/,
+      );
+      expect(resolveLocation).not.toHaveBeenCalled();
+      const item = symbolsView.selectList.getSelectedItem();
+      expect(await symbolsView.openSelectedSymbol(item)).toBe(true);
+      expect(resolveLocation).toHaveBeenCalledTimes(1);
+      expect(lumine.workspace.getActiveTextEditor().getPath()).toBe(path);
+      expect(lumine.workspace.getActiveTextEditor().getCursorBufferPosition()).toEqual([6, 2]);
+    });
     it("displays all symbols", async () => {
       registerProvider(DummyProvider);
       await activationPromise;

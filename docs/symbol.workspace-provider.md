@@ -24,7 +24,7 @@ Declare `symbol.workspace-provider` in `providedServices` at version `1.0.0` and
 | ------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `onDidInvalidateWorkspaceSymbols(callback)` | Returns a disposable; notify when backend availability, capabilities or project scope change. |
 
-Each symbol requires `name`, a position or range, and a destination: `path`, `uri` or `directory` plus `file`. Notebook locations can additionally carry `cell` and a cell URI.
+Each symbol requires a `name` and a destination given by `path`, `uri` or `directory` and `file`. Return a position or range when available. When the request sets `deferLocations`, a row can supply `resolveLocation({ signal, timeoutMs })` to return the complete symbol when the user navigates to it. Notebook locations can also carry `cell` and a cell URI.
 
 ## Minimal example
 
@@ -44,7 +44,7 @@ The hub asks all registered workspace providers concurrently. Query changes canc
 
 `onSymbols(symbols)` publishes the provider's accumulated snapshot, replacing its previous snapshot. `onStatus({state, message?})` reports `ready`, `unavailable`, `starting`, `partial` or `error`. Distinguish unavailable backends from a successful search with no matches. A cancelled request resolves `null`.
 
-Results are deduplicated by destination, cell, name, kind and navigation position. Provider identity is excluded. Preserve cancellation and project scope; do not open documents or start extra language servers merely to answer this request.
+Results with known positions are deduplicated by destination, cell, name, kind and navigation position. Deferred rows retain their identity because two overloads can have the same name and destination. Resolve each row through the backend that produced it and honor the navigation request's cancellation signal.
 
 ## Teardown
 
