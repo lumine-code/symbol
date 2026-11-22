@@ -82,6 +82,11 @@ export interface DocumentSymbolProvider extends ProviderIdentity {
     editor: TextEditor,
     request: SymbolRequest & { sourceId: string },
   ): MaybePromise<FileSymbol[] | null>;
+  getDocumentSymbolPath?(
+    editor: TextEditor,
+    position: PointCompatible,
+    request: SymbolRequest & { sourceId: string },
+  ): MaybePromise<FileSymbol[] | null>;
   onDidInvalidateDocumentSymbols?(
     callback: (event: { editor?: TextEditor | null }) => void,
   ): Disposable;
@@ -122,6 +127,11 @@ export interface SymbolRegistry {
   getFileSymbols(editor: TextEditor): Promise<NormalizedSymbol[] | null>;
   peekFileSymbols(editor: TextEditor): NormalizedSymbol[] | null;
   getFileSymbolTree(editor: TextEditor): Promise<FileSymbolTree[] | null>;
+  getFileSymbolPath(
+    editor: TextEditor,
+    position: PointCompatible,
+    options?: { signal?: AbortSignal },
+  ): Promise<{ path: NormalizedSymbol[] } | { tree: FileSymbolTree[] } | null>;
   peekFileSymbolTree(editor: TextEditor): FileSymbolTree[] | null;
   onDidInvalidateFileSymbols(
     callback: (event: { editor: TextEditor | null; provider: ProviderDescriptor | null }) => void,

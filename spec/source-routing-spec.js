@@ -56,6 +56,45 @@ describe("document source routing", () => {
     expect(syntax.getDocumentSymbols).not.toHaveBeenCalled();
   });
 
+  it("honors the selected source for a local path and reuses a completed full tree", async () => {
+    syntax.getDocumentSymbolPath = jasmine.createSpy("cursor path").and.returnValue([
+      {
+        name: "local",
+        range: [
+          [0, 0],
+          [0, 3],
+        ],
+      },
+    ]);
+    const auto = await registry.getFileSymbolPath(editor, [0, 1]);
+    expect(auto.tree.map(({ name }) => name)).toEqual(["semantic"]);
+    expect(syntax.getDocumentSymbolPath).not.toHaveBeenCalled();
+    await registry.setDocumentSource(editor, "syntax");
+    const local = await registry.getFileSymbolPath(editor, [0, 1]);
+    expect(local.path.map(({ name }) => name)).toEqual(["local"]);
+    expect(local.path[0].providerId).toBe("syntax");
+    expect(syntax.getDocumentSymbols).not.toHaveBeenCalled();
+    expect(registry.peekFileSymbolTree(editor)).toBeNull();
+    const tree = await registry.getFileSymbolTree(editor);
+    expect(await registry.getFileSymbolPath(editor, [0, 1])).toEqual({ tree });
+    expect(syntax.getDocumentSymbolPath).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts a pending local path when the source text changes", async () => {
+    await registry.setDocumentSource(editor, "syntax");
+    let requestedSignal;
+    syntax.getDocumentSymbolPath = (_editor, _point, { signal }) => {
+      requestedSignal = signal;
+      return new Promise(() => {});
+    };
+    const result = registry.getFileSymbolPath(editor, [0, 0]);
+    await conditionPromise(() => requestedSignal);
+    editor.setText("updated");
+    expect(requestedSignal.aborted).toBeTrue();
+    expect(await result).toBeNull();
+    expect(syntax.getDocumentSymbols).not.toHaveBeenCalled();
+  });
+
   it("reuses each unchanged source snapshot and clears all snapshots on text edits", async () => {
     const first = await registry.getFileSymbols(editor);
     await registry.setDocumentSource(editor, "syntax");

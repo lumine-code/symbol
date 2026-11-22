@@ -4,7 +4,7 @@ The symbol hub's cached document symbols, workspace search and definition lookup
 
 |             |                                                            |
 | ----------- | ---------------------------------------------------------- |
-| Version     | `1.1.0`                                                    |
+| Version     | `1.2.0`                                                    |
 | Provided by | `provideSymbolRegistry()`                                  |
 | Consumed by | `consumeSymbolRegistry(registry)` returning a `Disposable` |
 | Owner       | `symbol`                                                   |
@@ -38,6 +38,11 @@ interface SymbolRegistry {
   getFileSymbols(editor: TextEditor): Promise<NormalizedSymbol[] | null>;
   peekFileSymbols(editor: TextEditor): NormalizedSymbol[] | null;
   getFileSymbolTree(editor: TextEditor): Promise<FileSymbolTree[] | null>;
+  getFileSymbolPath(
+    editor: TextEditor,
+    position: PointCompatible,
+    options?: { signal?: AbortSignal },
+  ): Promise<{ path: NormalizedSymbol[] } | { tree: FileSymbolTree[] } | null>;
   peekFileSymbolTree(editor: TextEditor): FileSymbolTree[] | null;
   onDidInvalidateFileSymbols(callback): Disposable;
   searchWorkspace(
@@ -90,6 +95,8 @@ The last successful document result keeps its positions and ranges aligned with 
 
 Remote document sources use the configured response timeout. Local sources can finish large buffers without that deadline and remain cancellable by edits, source changes and teardown. Auto can therefore fall back from a timed-out language server to Tree-sitter without applying the same response deadline to local extraction.
 
+`getFileSymbolPath` uses any available full snapshot and returns `{ tree }` for the caller to look up the position. It otherwise asks the selected source for an exact path. A provider can decline this narrower request, in which case the registry uses its full document routing. A `{ path }` result is ordered from the outermost symbol towards the cursor, belongs to the source revision at the time of the request, and leaves the full document cache empty. Cancel an outstanding path request when its cursor, editor or consumer changes.
+
 `listDocumentSources` lists metadata without extracting symbols. `getDocumentSourceState` reports `mode` (`auto` or `manual`), choice `scope` (`file` or `grammar`), selected `sourceId` (`null` for Auto), source descriptor and request `status` (`idle`, `loading`, `ready`, `starting`, `unavailable` or `error`). The source descriptor is independent of result count, so a ready empty array still identifies its source. `onDidChangeDocumentSource` receives `{editor, state}`. Unavailable manual sources retain their descriptive name when known.
 
 `setDocumentSource(editor, id)` selects one source for that file in the project; `null` explicitly selects Auto for the file. File choices use document URIs or serialized buffer IDs for new buffers and are kept in the package's project storage. The returned promise resolves once the choice is saved. A file choice takes precedence over grammar configuration. `{scope: "grammar"}` saves the choice in grammar-scoped `symbol.documentSource` and clears the current file's override; other files keep their overrides. Switching sources cancels old requests and emits the existing `onDidInvalidateFileSymbols` event, so all consumers refresh together. Source caches are retained for the unchanged buffer and cleared on source or buffer invalidation. Manual selection does not silently fall back. Workspace symbols and definitions are independent of this selection.
@@ -104,4 +111,4 @@ Return a disposable from consumption and remove every event subscription it owns
 
 ## Versioning
 
-`1.1.0` provided, `^1.1.0` consumed. This preproduction contract is migrated atomically across the fleet; the former project and declaration methods are removed without aliases.
+`1.2.0` adds cursor symbol paths. Consumers that use this method can require `^1.2.0` or detect it on an implementation of `^1.1.0`.

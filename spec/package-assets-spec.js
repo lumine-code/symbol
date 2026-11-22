@@ -43,7 +43,7 @@ describe("symbol package assets", () => {
 
   it("provides the registry and consumes separate document, workspace and definition roles", () => {
     const pkg = JSON.parse(read("package.json"));
-    expect(pkg.providedServices["symbol.registry"].versions["1.1.0"]).toBe("provideSymbolRegistry");
+    expect(pkg.providedServices["symbol.registry"].versions["1.2.0"]).toBe("provideSymbolRegistry");
     expect(pkg.providedServices["hyperclick.provider"].versions["1.0.0"]).toBe("provideHyperclick");
     expect(pkg.providedServices["background-tips.provider"].versions["1.0.0"]).toBe(
       "provideBackgroundTips",

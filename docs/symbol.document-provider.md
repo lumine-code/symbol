@@ -4,14 +4,14 @@ Supplies a complete symbol list for the current document.
 
 |             |                                                                    |
 | ----------- | ------------------------------------------------------------------ |
-| Version     | `1.0.0`                                                            |
+| Version     | `1.1.0`                                                            |
 | Provided by | `provideDocumentSymbolProvider()`                                  |
 | Consumed by | `consumeDocumentSymbolProvider(provider)` returning a `Disposable` |
 | Owner       | `symbol`                                                           |
 
 ## Registration
 
-Declare `symbol.document-provider` in `providedServices` at version `1.0.0`. Publish the provider during synchronous bootstrap; keep expensive work behind its methods.
+Declare `symbol.document-provider` in `providedServices` at version `1.1.0` when providing cursor paths. Publish the provider during synchronous bootstrap and keep expensive work behind its methods.
 
 ## Contract
 
@@ -21,9 +21,10 @@ Declare `symbol.document-provider` in `providedServices` at version `1.0.0`. Pub
 | `getDocumentSymbolSources(editor, request)` | Metadata for sources applicable to this buffer; `request` carries an optional `signal`. Do not extract symbols here. |
 | `getDocumentSymbols(editor, request)`       | Complete array from exactly `request.sourceId`; the request also carries `signal` and `timeoutMs`.                   |
 
-| Optional member                            | Description                                                                                    |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `onDidInvalidateDocumentSymbols(callback)` | Returns a disposable; notify with `{editor}` or `{editor: null}` when every document is stale. |
+| Optional member                                    | Description                                                                                                             |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `onDidInvalidateDocumentSymbols(callback)`         | Returns a disposable; notify with `{editor}` or `{editor: null}` when every document is stale.                          |
+| `getDocumentSymbolPath(editor, position, request)` | Returns an exact path from the outermost symbol towards the given position, or `null` to request full document symbols. |
 
 A symbol requires `name` and `position` or `range`. Positions and ranges accept editor objects, arrays or plain objects. Optional `tag`, `context`, `shortName` and `icon` enrich the presentation. Give structural ranges when available so the registry can construct the hierarchy.
 
@@ -52,10 +53,12 @@ The hub chooses one document source. Auto orders ready sources by score and user
 
 The current buffer is authoritative, including unsaved changes. The hub shares in-flight work and caches complete results per editor and source. Switching a source cancels obsolete requests and invalidates every consumer of the selected snapshot while retaining current-version source caches. Buffer, grammar and provider changes invalidate those caches. Return `null` on cancellation; check `signal` after awaits. Each remote extraction attempt receives its own configured response timeout. Local extraction receives `timeoutMs: 0` and can finish a large buffer without that deadline; it remains cancellable by the same lifecycle signal and should yield during expensive work. A timeout or failure of a remote source must not consume or cancel the local fallback's work budget.
 
+An optional path must agree with the provider's full list, including containment, ties and nearest-symbol behavior. Return `null` when the local query lacks enough context to establish that result. Use an empty array when the position has no symbol path. The request carries the same source ID, cancellation signal and timeout as a full document request.
+
 ## Teardown
 
 Dispose the invalidation subscription when the service edge disappears. Providers own their resources; unregistering the hub does not destroy another package's provider.
 
 ## Versioning
 
-`1.0.0` provided, `^1.0.0` consumed. This replaces the combined symbol provider contract without a compatibility bridge.
+`1.1.0` adds the optional path lookup. The hub accepts `^1.0.0`.
